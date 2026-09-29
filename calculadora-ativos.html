@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Compra de Ativos</title>
+<script>
+/* =====================================================================
+   CONFIGURAÇÃO DA CLÍNICA  ·  edite só estas duas linhas por clínica
+   ===================================================================== */
+window.CONFIG = {
+  CLINICA: "Nome da Clínica",           // aparece no topo e nos pedidos
+  API_URL: ""                           // URL do App da Web do Apps Script (termina em /exec)
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caladea:wght@400;700&family=Carlito:wght@400;700&display=swap">
+<style>
+/* Layout: faixa navy de marca no topo, etapas em coluna única, tabela de ativos como peça central, relatório por farmácia ao final */
+:root{
+  --bg:#F8F1E9; --surface:#FFFDF9; --ink:#1D2842; --muted:#5F6780; --line:#E3D8C8;
+  --navy:#243D71; --band:#243D71; --band-ink:#F8F1E9; --gold:#B38A45; --gold-soft:#F2E6CF;
+  --btn:#243D71; --btn-ink:#F8F1E9; --focus:#B38A45;
+  --ok:#2E7550; --ok-soft:#E2F0E7; --warn:#9A5A17; --warn-soft:#F8E9D6; --danger:#A33A3A;
+  --f-head:Cambria,Caladea,Georgia,serif; --f-body:Calibri,Carlito,"Segoe UI",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10182A; --surface:#172238; --ink:#EDE6DB; --muted:#A5ADC2; --line:#2A3654;
+  --navy:#9FB3E0; --band:#172238; --band-ink:#F8F1E9; --gold:#D2AF6C; --gold-soft:#2C2A25;
+  --btn:#D2AF6C; --btn-ink:#10182A; --focus:#D2AF6C;
+  --ok:#7FCB9F; --ok-soft:#173326; --warn:#E6B070; --warn-soft:#352716; --danger:#E08585; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10182A; --surface:#172238; --ink:#EDE6DB; --muted:#A5ADC2; --line:#2A3654;
+  --navy:#9FB3E0; --band:#172238; --band-ink:#F8F1E9; --gold:#D2AF6C; --gold-soft:#2C2A25;
+  --btn:#D2AF6C; --btn-ink:#10182A; --focus:#D2AF6C;
+  --ok:#7FCB9F; --ok-soft:#173326; --warn:#E6B070; --warn-soft:#352716; --danger:#E08585; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+h1,h2,h3{font-family:var(--f-head);text-wrap:balance;margin:0;line-height:1.2}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.band{background:var(--band);color:var(--band-ink);border-bottom:3px solid var(--gold);padding-inline:16px}
+.band-in{max-width:1180px;margin:0 auto;padding-block:22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.logo{width:74px;height:auto;flex:none}
+.logo path{fill:var(--band-ink)}
+.logo .arrow{fill:var(--gold)}
+.band h1{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:700}
+.band p{margin:2px 0 0;opacity:.85;font-size:.95rem}
+.band .phrase{margin-left:auto;font-family:var(--f-head);font-style:italic;color:var(--gold);font-size:1rem}
+
+main{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:28px 60px;display:grid;gap:28px}
+.step{display:grid;gap:14px}
+.step-h{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.step-h .n{font-family:var(--f-head);color:var(--gold);font-size:1.4rem;font-weight:700}
+.step-h h2{font-size:1.35rem;color:var(--navy)}
+.step-h .aside{margin-left:auto;color:var(--muted);font-size:.9rem}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.guide{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px}
+.guide ol{margin:0;padding-left:1.3em;display:grid;gap:8px}
+.guide li::marker{color:var(--gold);font-weight:700}
+.guide b{color:var(--navy)}
+.formula{background:var(--gold-soft);border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start}
+.formula .lbl,.lbl{text-transform:uppercase;letter-spacing:.08em;font-size:.75rem;color:var(--muted);font-weight:700}
+.formula code{font-family:var(--f-body);font-weight:700;font-size:1rem;color:var(--ink);line-height:1.45}
+.formula .live{font-size:.95rem}
+.formula .live strong{color:var(--navy);font-variant-numeric:tabular-nums}
+
+.two{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.field{display:grid;gap:4px}
+.field label{font-size:.85rem;color:var(--muted);font-weight:700}
+.field input,.field select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+.field small{color:var(--muted);font-size:.78rem}
+
+.btn{border:0;border-radius:8px;padding:9px 16px;background:var(--btn);color:var(--btn-ink);font-weight:700;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--navy);border:1px solid var(--line)}
+.btn.sm{padding:5px 11px;font-size:.88rem}
+.row-inline{display:flex;gap:8px;flex-wrap:wrap}
+.row-inline input{flex:1 1 180px}
+.pharm-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--gold-soft);border-radius:999px;padding:4px 6px 4px 12px;font-size:.92rem}
+.pill button{border:0;background:transparent;cursor:pointer;color:var(--muted);width:22px;height:22px;border-radius:50%;line-height:1}
+.pill button:hover{color:var(--danger)}
+.empty{color:var(--muted);font-size:.92rem}
+
+.picker{display:grid;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 13px;cursor:pointer;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.chip .c{opacity:.7;font-variant-numeric:tabular-nums;margin-left:4px}
+.results{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.res{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:8px 12px;cursor:pointer}
+.res:last-child{border-bottom:0}
+.res:hover{background:var(--gold-soft)}
+.res .nm{flex:1;min-width:0}
+.res.added{opacity:.55}
+.res .st{font-size:.78rem;color:var(--muted);white-space:nowrap}
+
+.via{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:5px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.via.IV{color:var(--navy)} .via.IMP{color:var(--gold)} .via.SC{color:var(--ok)}
+
+.banner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:10px 14px;font-size:.93rem}
+.banner .btn{margin-left:auto}
+
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+thead th{font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--bg);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right}
+.items td input,.items td select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 8px}
+.items td input{width:84px;text-align:right}
+.items td select{max-width:170px}
+.items .nm{min-width:220px;max-width:340px}
+.items .hint{display:block;font-size:.72rem;color:var(--muted)}
+.buy{display:inline-block;min-width:56px;text-align:center;font-weight:700;border-radius:6px;padding:4px 8px;background:var(--ok-soft);color:var(--ok)}
+.buy.zero{background:transparent;color:var(--muted);font-weight:400}
+.x{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px}
+.x:hover{color:var(--danger)}
+.na{color:var(--muted)}
+
+.report{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.rep-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:18px;border-bottom:3px solid var(--gold);background:var(--band);color:var(--band-ink)}
+.rep-head .logo{width:52px}
+.rep-head h3{font-size:1.25rem}
+.rep-head .meta{font-size:.9rem;opacity:.85}
+.rep-params{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.rep-params .v{font-weight:700;font-size:1.05rem;color:var(--navy);font-variant-numeric:tabular-nums}
+.rep-body{padding:18px;display:grid;gap:22px}
+.ph-block{display:grid;gap:8px}
+.ph-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ph-h h4{margin:0;font-family:var(--f-head);font-size:1.1rem;color:var(--navy)}
+.ph-h .tot{color:var(--muted);font-size:.9rem}
+.ph-h .btn{margin-left:auto}
+.ph-block.warn h4{color:var(--warn)}
+.rep-foot{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 18px;border-top:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:8px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+textarea.copybox{width:100%;min-height:160px;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:10px;font:inherit}
+
+.setup{display:grid;gap:18px}
+.freq{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.fq{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:12px;cursor:pointer;text-align:center;display:grid;gap:2px;font-size:.95rem}
+.fq b{font-family:var(--f-head);font-size:1.6rem;color:var(--navy);line-height:1.1;display:block}
+.fq small{color:var(--muted);font-size:.8rem}
+.fq[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.fq[aria-pressed="true"] b,.fq[aria-pressed="true"] small{color:var(--btn-ink)}
+.fq.other{cursor:default;align-content:center}
+.fq.other label{font-size:.85rem;color:var(--muted);font-weight:700}
+.fq.other input{width:100%;max-width:90px;margin:0 auto;text-align:center;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:5px;font-weight:700}
+.fq.other.on{border-color:var(--btn);box-shadow:inset 0 0 0 1px var(--btn)}
+.timeline{display:flex;border-radius:8px;overflow:hidden;font-size:.85rem;font-weight:700;min-height:38px}
+.seg{display:flex;align-items:center;justify-content:center;padding:6px 10px;text-align:center;min-width:0}
+.seg.a{background:var(--gold-soft);color:var(--ink)}
+.seg.b{background:var(--btn);color:var(--btn-ink)}
+.why{margin:-8px 0 0;color:var(--muted);font-size:.9rem;max-width:70ch}
+.rule{margin:0;font-size:1.08rem;line-height:1.55}
+.rule strong{color:var(--navy);font-variant-numeric:tabular-nums}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,220px));gap:14px}
+.mini input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;width:100%}
+.tips{margin:0;padding:14px 16px 14px 32px;background:var(--gold-soft);border-radius:8px;display:grid;gap:6px;font-size:.95rem}
+.tips li::marker{color:var(--gold)}
+.tips b{color:var(--navy)}
+@media (max-width:620px){.freq{grid-template-columns:repeat(2,minmax(0,1fr))}.timeline{flex-direction:column}.seg{flex:1 1 auto!important}}
+.addnew{display:grid;gap:8px;border-top:1px dashed var(--line);padding-top:14px}
+.addrow{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.addrow .field{flex:1 1 150px}
+.addrow .field.grow{flex:3 1 260px}
+.addrow .btn{flex:none}
+.items tr.has-sub td{border-bottom:0}
+.items tr.sub td{background:var(--bg);padding:12px 14px 16px}
+.vials{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.vials-grid{display:flex;flex-wrap:wrap;gap:10px;flex:2 1 420px}
+.vial{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:6px;min-width:128px;flex:1 1 128px}
+.vial .vs{font-family:var(--f-head);font-weight:700;color:var(--navy)}
+.vial label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);font-weight:700}
+.items .vial input{width:64px}
+.vials-side{flex:1 1 240px;display:grid;gap:8px;justify-items:start;font-size:.9rem}
+.vials-status{display:grid;gap:3px}
+.vials-status b{color:var(--navy)}
+.st-chip{display:inline-block;margin-top:4px;border-radius:999px;padding:3px 10px;font-weight:700;font-size:.82rem}
+.st-chip.ok{background:var(--ok-soft);color:var(--ok)}
+.st-chip.warn{background:var(--warn-soft);color:var(--warn)}
+.hist .htbl td{vertical-align:top}
+.htbl .hint{display:block;font-size:.78rem;color:var(--muted)}
+.htbl tr.open td{border-bottom:0;background:var(--gold-soft)}
+.hdet td{background:var(--bg)}
+.hdet-in{display:grid;gap:12px;padding:6px 2px}
+.hmeta{color:var(--muted);font-size:.9rem}
+.hph h4{margin:0 0 4px;font-family:var(--f-head);color:var(--navy)}
+.hph ul{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-width:640px}
+.hph li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dotted var(--line);padding:3px 0}
+.hph li b{white-space:nowrap}
+.hact{text-align:right}
+.confirm{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:4px 8px;font-size:.9rem}
+.btn.danger{background:var(--danger);color:var(--surface)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+@media (max-width:820px){.guide,.two{grid-template-columns:1fr}.band .phrase{margin-left:0;width:100%}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="band-in">
+    <svg class="logo" viewBox="370 172 502 356" aria-label="Andréia Lage Consultoria" role="img">
+      <path class="arrow" d="M428 521 L375 520 L511 179 L559 179 L636 377 Q614 389 591 397 L535 252 L462 437 Q640 446 763 306 L737 278 L849 237 L811 350 L785 329 Q652 476 449 468 Z"/>
+      <path d="M604 179 L658 179 L712 323 Q692 341 671 356 Z"/>
+      <path d="M621 470 Q645 462 667 452 L693 522 L640 522 Z"/>
+      <path d="M701 433 Q723 420 743 404 L769 472 Q772 476 780 476 L866 476 L866 522 L735 522 Z"/>
+    </svg>
+    <div>
+      <h1>Calculadora de Compra de Ativos</h1>
+      <p id="clinicaTopo">Andréia Lage Consultoria Comercial</p>
+    </div>
+    <div class="phrase">Não se convence. Se conduz.</div>
+  </div>
+</header>
+
+<main>
+  <!-- 1. Como é a compra -->
+  <section class="step" aria-labelledby="s1">
+    <div class="step-h"><span class="n">1</span><h2 id="s1">De quanto em quanto tempo você compra?</h2></div>
+    <div class="panel setup">
+      <div class="freq" role="group" aria-label="Frequência de compra">
+        <button type="button" class="fq" data-p="7">A cada <b>7</b> dias<small>semanal</small></button>
+        <button type="button" class="fq" data-p="15">A cada <b>15</b> dias<small>quinzenal</small></button>
+        <button type="button" class="fq" data-p="30">A cada <b>30</b> dias<small>mensal</small></button>
+        <div class="fq other"><label for="pPeriodo">Outro</label><input id="pPeriodo" type="number" min="1" max="120" step="1" value="15"><small>dias</small></div>
+      </div>
+      <div class="timeline" aria-hidden="true">
+        <div class="seg a" id="segA"><span id="segAtxt">15 dias até a próxima compra</span></div>
+        <div class="seg b" id="segB"><span id="segBtxt">30 dias de entrega</span></div>
+      </div>
+      <p class="rule" id="liveRule"></p>
+      <p class="why">Usar 30 dias de consumo evita que uma semana atípica, com evento ou feriado, infle ou esvazie o pedido. A frequência só define por quanto tempo o pedido precisa durar.</p>
+      <div class="mini">
+        <div class="field"><label for="pPrazo">Prazo de entrega (dias)</label><input id="pPrazo" type="number" min="0" step="1" value="30"></div>
+        <div class="field"><label for="pMargem">Margem de segurança (%)</label><input id="pMargem" type="number" min="0" max="200" step="5" value="20"></div>
+      </div>
+      <ul class="tips">
+        <li><b>Sempre em unidades</b>: ampolas, frascos, implantes. Nunca caixas.</li>
+        <li><b>Implantes</b>: lance os realizados nos últimos 30 dias e, na coluna própria, os implantes com renovação prevista nos pacientes nos próximos 60 dias.</li>
+        <li><b>Tirzepatida e Semaglutida em frasco</b>: lance o uso em mg e o estoque por tamanho de frasco. A calculadora sugere quantos frascos de cada tamanho comprar, e você pode ajustar.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 2. Dados do pedido e farmácias -->
+  <section class="step" aria-labelledby="s2">
+    <div class="step-h"><span class="n">2</span><h2 id="s2">Dados do pedido e farmácias</h2></div>
+    <div class="two">
+      <div class="panel">
+        <div class="fields">
+          <div class="field"><label for="pData">Data do pedido</label><input id="pData" type="date"></div>
+          <div class="field"><label for="pOper">Nome da clínica</label><input id="pOper" type="text" placeholder="Ex.: Clínica Ânima"></div>
+          <div class="field"><label for="pResp">Responsável</label><input id="pResp" type="text" placeholder="Quem fez a contagem"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="field"><label for="phName">Adicionar farmácia</label></div>
+        <form class="row-inline" id="phForm">
+          <input id="phName" type="text" placeholder="Ex.: Farmácia de Manipulação Central" autocomplete="off">
+          <button class="btn" type="submit">Adicionar</button>
+        </form>
+        <div class="pharm-list" id="phList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Ativos -->
+  <section class="step" aria-labelledby="s3">
+    <div class="step-h"><span class="n">3</span><h2 id="s3">Ativos do pedido</h2><span class="aside" id="countTxt"></span></div>
+    <div class="panel picker">
+      <div class="field"><label for="search">Buscar ativo</label>
+        <input id="search" type="search" placeholder="Digite o nome: vitamina C, testosterona, tirzepatide..." autocomplete="off"></div>
+      <div class="chips" id="chips" role="group" aria-label="Filtrar por via"></div>
+      <div class="results" id="results"></div>
+      <form class="addnew" id="newForm">
+        <span class="lbl">Não encontrou? Adicione um novo ativo</span>
+        <div class="addrow">
+          <div class="field grow"><label for="newName">Nome do ativo</label><input id="newName" type="text" placeholder="Ex.: Vitamina K2 MK7 200mcg - 1mL" autocomplete="off"></div>
+          <div class="field"><label for="newVia">Via</label><select id="newVia"><option value="IV">Intravenoso</option><option value="IM" selected>Intramuscular</option><option value="IMP">Implante</option><option value="SC">Subcutâneo</option><option value="OUT">Outro</option></select></div>
+          <div class="field"><label for="newMg">Tamanhos do frasco em mg (opcional)</label><input id="newMg" type="text" inputmode="decimal" placeholder="Ex.: 25, 50, 60"></div>
+          <button class="btn" type="submit">Adicionar ativo</button>
+        </div>
+        <small class="empty">O ativo fica salvo na lista de busca para os próximos pedidos. Preencha os tamanhos do frasco só se o uso for lançado em mg, como na Tirzepatida.</small>
+      </form>
+    </div>
+    <div class="banner" id="janBanner" hidden>
+      <span>O consumo agora é sempre dos <b>últimos 30 dias</b>. Revise os valores já lançados na coluna "Usado 30 dias".</span>
+      <button class="btn sm" id="janOk" type="button">Entendi</button>
+    </div>
+    <div class="banner" id="exBanner" hidden>
+      <span>Os itens abaixo são um <b>exemplo</b> para mostrar o funcionamento. Substitua pelos dados reais da clínica.</span>
+      <button class="btn sm" id="clearEx" type="button">Limpar exemplo</button>
+    </div>
+    <div class="tbl-wrap">
+      <table class="items">
+        <thead><tr>
+          <th>Ativo</th><th>Via</th><th>Farmácia</th>
+          <th class="num" data-per>Usado 30 dias</th><th class="num">Renovações 60 d</th><th class="num">Estoque</th>
+          <th class="num">Média/dia</th><th class="num">Necessidade</th><th class="num">Comprar (un)</th><th></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4. Relatório -->
+  <section class="step" aria-labelledby="s4">
+    <div class="step-h"><span class="n">4</span><h2 id="s4">Relatório de compra</h2><span class="aside">Atualiza automaticamente</span></div>
+    <div class="report" id="report"></div>
+  </section>
+  <!-- 5. Histórico -->
+  <section class="step" aria-labelledby="s5">
+    <div class="step-h"><span class="n">5</span><h2 id="s5">Histórico de pedidos</h2><span class="aside" id="histWhere">Carregando...</span></div>
+    <div id="hist" class="hist"><p class="empty">Carregando histórico...</p></div>
+  </section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+const VIAS={IV:'Intravenoso',IM:'Intramuscular',IMP:'Implante',SC:'Subcutâneo',OUT:'Outro'};
+const RAW={
+IV:`L-Glicina 75mg - 2mL|Ácido alfa Lipóico 600mg - 24mL|Alfa-GPC (Alfa-glicerilfosfatidilcolina) - 98% de GPC (15%) 150mg/1mL|Beta Glucana 10mg - 2mL|Ferinject|Vitamina C 20% (10g) - 25mL|Vitamina C 20% (10g) - 50mL|Vitamina C 20% (1g) - 5mL|Vitamina C 20% (444mg) - 2mL|Vitamina C 20% (5mg) - 25mL|Selênio 80mcg - 2mL|Sulf. Zinco 20mg - 2mL|ATP 20mg - 2mL|Piracetam 500g - 2mL|L-Ornitina 300mg - 2mL|L-Lisina 300mg - 2mL|L-Taurina (5%) 100mg - 2mL|Taurina (7,5%) 150mg / 2mL|Inositol 10% + L-Taurina 7,5% - 2mL|L-Glutathion (5%) 100mg - 2mL|L-Carnitina (30%) 600mg - 2mL|L-Metionina 25g + Taurina 50mg + L-Prolina 10mg + Biotina 10mg + Vit B2 5mg + Vit B3 10mg + Vit B6 10mg + Vit B5 10mg / 2mL|Sulfato de Magnésio (10%) 200mg - 2mL|Sulfato de Magnésio (10%) 500mg - 5mL|Alanil Glutamina 1g - 10mL|Alanil Glutamina 200mg - 2mL|N-Acetil Cisteína (15%) 300mg - 2mL|N-Acetil L-Tirosina (1%) 20mg / 2mL|Nanomicelas de Curcuminoides (0,1%) 2mg / 2mL|Nanomicelas de Baicalina (0,5%) 5mg/1mL|Nanomicelas de Quercetina (0,75%) 15mg/2mL|Vitamina B3 600.000UI - 1mL|Inositol (5%) 100mg + Taurina (5%) 100mg/2mL|D-Pantenol 40mg - 2mL|Noripurum|Aminoácidos (3,8%) /10mL (Glicina 74mg + Ácido Aspártico 9mg + L-Ornitina HCl 30mg + L-Lisina HCl 31mg + L-Prolina 90mg + Serina 12mg + L-Metionina 46mg + L-Arginina HCl 80mg + L-Triptofano 9mg)|Pool Minerais|MSM (Metilsulfonilmetano) (15%) 750mg / 5mL|MSM (Metilsulfonilmetano) (15%) 1,5g / 10mL|NMN (B-Mononucleotídeo de Nicotinamida) (10%) 100mg / 1mL|Ocitocina - 10 UI - 2mL`,
+IM:`Melatonina 10mg|Protocolo Adjuvante para Cognição e Neuroproteção|Aplicação Intramuscular|Protocolo Adjuvante para Cicatrização|Protocolo Adjuvante para Cognição|Biocolin (Vit B2+B3+B5+B6+Zn+Se+Si+B9+Prolina) 5mL|B9 (Ácido fólico ou metilfolato) 2,5mg / 2mL|Beta Alanina (37,5%) 750mg / 2mL|Biotina 10mg - 2mL|Cafeína Benzoica (5%) 100mg / 2mL|Citrus Sinensis|Citrus sinensis complex com Teacrina / 2,5mL (Citrus sinensis L. Osbeck Moro 20mg + Teacrina 25mg + L-Carnitina 150mg + Inositol 50mg + Furosemida 2,5mg + Lidocaína HCl 10mg)|Coenzima Q10 (5%) 100mg / 2mL - Veículo oleoso|Teacrina Complex|Timomodulina (2,5%) 50mg / 2mL|Complexo B com B1 /1mL (Vit B1 5mg + Vit B2 1,25mg + Vit B3 15mg + Vit B5 3mg + Vit B6 1,25mg)|Complexo B com Metil B12 /2mL (Vit B2 10mg + Vit B3 30mg + Vit B5 30mg + Vit B6 80mg + Metil B12 1mg)|Complexo B sem B1 /2mL (Vit B2 10mg + Vit B3 10mg + Vit B5 50mg + Vit B6 10mg)|D-Ribose (25%) 500mg / 2mL|GABA (Ácido Gama aminobutírico) (1,25%) 25mg/2mL|HMB (Hidroximetilbutirato) (7,5%) 150mg /2mL|Inositol (10%) 200mg + L-Taurina (7,5%) 150mg/ 2mL|L-Teanina|L-Arginina (50%) 1g/ 2mL|L-Fenilalanina (1%) 20mg - 2mL|L-BAIBA (Ácido β-aminoisobutírico) 100mg/1mL|Lidocaína 1% - 2mL|Lidocaína (2%) 20mg/ 1mL|L-Prolina 500mg - 2mL|L-Taurina 150g - 2mL|L-Theanina (2,5%) 50mg/ 2mL|Metilcobalamina 2500mcg - 1mL|Metilcobalamina 500mcg|Metiladores /2mL (Metilcobalamina 2,5mg + Piridoxal-5-fosfato 10mg) + Metilfolato 2,5mg/2mL|Nanomicelas de Resveratrol (1%) 10mg /1mL|Pill Food - 2mL (L-Metionina 25mg + L-Taurina 50mg + L-Prolina 10mg + Biotina 10mg + Vit B2 5mg + Vit B3 10mg + Vit B6 10mg + D-Pantenol 10mg)|Picolinato de Cromo 100mcg + L-Carnitina 300mg + Inositol 500mg + Taurina 375mg + L-Theanina 100mg + N-Acetil L-Tirosina 50mg + Lidocaína HCl 1% / 5mL|Pool Cognição|Pool para Cognição (colina cloreto + L-carnitina + D-pantenol) 2mL|Pool Metabólico 5mL|Pool Coenzimático - 2mL (Tiamina 100mg + Piridoxal 5mg + Metiltetrahidrofolato 1mg + Metil B12 1000mcg + Vit B2 20mg + D-Pantenol 100mg)|Hormus Undecilato de Testosterona 250mg / 4mL|Durateston|Nandrolona 50mg - 2mL|Nandrolona 25mg - 2mL|Protocolo Detox|Adenosina Trifosfato 20mg + Pirroloquinolina Quinona 2mg + L-Carnitina 600mg / 2mL|Complexo B com B12 e P5F / 2mL (Vit B2 10mg + Vit B3 30mg + Vit B5 50mg + Piridoxal 5-Fosfato 6mg + Metilcobalamina 1mg)|Testosterona - 100mg - 1mL|Testosterona - 300mg - 1mL|Tocotrienóis (70%) 5mg + GeranilGeraniol 5mg (Urucum Complex) / 1mL|PQQ 5mg - 2mL|Resveratrol 100mg - 2mL|Silício 10mg - 2mL|Sulfato de Condroitina 100mg - 2mL|Teacrina 50mg/2mL|Trissilinol (Silício Orgânico) (0,5%) 10mg / 2mL|Undecanoato de testosterona 1.000mg /4mL|Undecanoato de testosterona 100mg /1mL|Bac ITU + Cândida|Vitamina D3 (Colecalciferol) 100.000UI / 1mL - Veículo oleoso|Vitamina D3 (Colecalciferol) 600.000UI /1mL - Veículo oleoso|ADEK2 600.000UI / 1mL (Vit A 20.000UI + Vit D3 600.000UI + Vit E 50UI + Vit K2 MK7 1300mcg) - Veículo oleoso|Undecilato de Testosterona 1.000mg|Vitamina DK2 600.000UI / 1mL (Vit D3 600.000UI + Vit K2 MK7 1000mcg) - Veículo oleoso|Vitamina B2 10mg|Vitamina B3 30mg|Vitamina B5 30mg|Vitamina B6 40mg`,
+IMP:`Aplicação Implante|Gestrinona - 40mg - Absorvível|Gestrinona - 50mg - Absorvível|Gestrinona - 85mg - Absorvível|Drospirenona - 50mg - Absorvível|Drospirenona - 100mg - Absorvível|Nestorone - 50mg - Silástico|Testosterona - 40mg - Silástico|Estradiol - 50mg - Silástico|Acetato de Nomegestrol - 55mg - Silástico|Oxandrolona - 40mg - Silástico|Testosterona - 50mg - Absorvível|Testosterona - 100mg - Absorvível|Testosterona - 200mg - Absorvível|NAD - 100mg - Absorvível|NAD - 200mg - Absorvível|NAD - 300mg - Absorvível|NAD - 400mg - Absorvível|Oxandrolona - 25mg - Absorvível|Oxandrolona - 50mg - Absorvível|Oxandrolona - 100mg - Absorvível|Oxandrolona - 200mg - Absorvível|Tadalafil - 25mg - Absorvível|Tadalafil - 50mg - Absorvível|Tadalafil - 200mg - Absorvível|Metformina - 100mg - Absorvível|Metformina - 200mg - Absorvível|Anastrozol - 5mg - Absorvível|Anastrozol - 10mg - Absorvível|Trans-resveratrol - 100mg|Testosterona - 25mg - Absorvível|Testosterona - 75mg - Absorvível|Testosterona - 150mg - Absorvível|Testosterona - 300mg - Absorvível|Testosterona - 400mg - Absorvível|Progesterona - 50mg - Absorvível|Progesterona - 100mg - Absorvível|Estradiol - 10mg - Absorvível|Estradiol - 12,5mg - Absorvível|Estradiol - 15mg - Absorvível|Estradiol - 20mg - Absorvível|Estradiol - 25mg - Absorvível|Estradiol - 35mg - Absorvível|Hormus Undecilato de Testosterona 1.000mg|Coenzima Q10 - Absorvível|Gestrinona 40g - Silástico|Testosterona 50mg - Silástico|Testosterona 100mg - Silástico|Testosterona 200mg - Silástico`,
+SC:`Tirzepatida (frasco)|Tirzepatide (5mg)|Tirzepatide (7,5mg)|Tirzepatide (10mg)|Tirzepatide (12,5mg)|Tirzepatide (15mg)|Semaglutida (frasco)|Semaglutida (10 UI)|Semaglutida (20 UI)|Semaglutida (30 UI)|Semaglutida (40 UI)|Semaglutida (50 UI)|Semaglutida (60 UI)|Semaglutida (80 UI)|Semaglutida (100 UI)|NADH/NAD 50mg/2mL|HCG (5.000 UI) - 1mL|HCG (150 UI) - 1mL`};
+const FRASCO={'Tirzepatida (frasco)':[25,50,60,90],'Semaglutida (frasco)':[4,6]};
+const CAT=[];Object.keys(RAW).forEach(v=>RAW[v].split('|').forEach(n=>{n=n.trim();if(n)CAT.push({nome:n,via:v,tamanhos:FRASCO[n]||null})}));
+
+const $=id=>document.getElementById(id);
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(n,d=0)=>Number(n).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const KEY='ativos-calc-v1';
+const JANELA=30; // consumo sempre medido nos últimos 30 dias
+let uid=1;
+const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+
+let S=null;
+try{S=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){S=null}
+if(!S||!S.params){
+  S={params:{periodo:15,prazo:30,margem:20,data:today,oper:'',resp:''},
+     farmacias:['Farmácia A (exemplo)','Farmácia B (exemplo)'],
+     exemplo:true,janela30:true,
+     rows:[
+      {nome:'Vitamina C 20% (1g) - 5mL',via:'IV',farmacia:'Farmácia A (exemplo)',consumo:80,vencer:0,estoque:25},
+      {nome:'Metilcobalamina 2500mcg - 1mL',via:'IM',farmacia:'Farmácia A (exemplo)',consumo:36,vencer:0,estoque:30},
+      {nome:'Gestrinona - 50mg - Absorvível',via:'IMP',farmacia:'Farmácia B (exemplo)',consumo:6,vencer:5,estoque:2},
+      {nome:'Tirzepatida (frasco)',via:'SC',tamanhos:[25,50,60,90],farmacia:'Farmácia B (exemplo)',consumo:300,vencer:0,estoque:'',est:{60:1},buy:{},manual:false}
+     ]};
+}
+if(S.params.periodo==null){S.params.periodo=Math.round(30/Math.max(1,+S.params.compras||2));delete S.params.compras}
+if(!S.janela30){S.janela30=true;
+  if(S.exemplo)S.rows.forEach(r=>{if(+r.consumo)r.consumo=+r.consumo*2});
+  else if(S.rows.some(r=>+r.consumo>0))S.avisoJanela=true;}
+S.custom=S.custom||[];S.custom.forEach(c=>{if(c.conteudo&&!c.tamanhos)c.tamanhos=[+c.conteudo];delete c.conteudo});
+S.rows.forEach(r=>{if(r.conteudo&&!r.tamanhos){const old=r.conteudo;
+  if(/^Tirzepatide \(Frasco\)/.test(r.nome)){r.nome='Tirzepatida (frasco)';r.tamanhos=FRASCO[r.nome]}
+  else if(/^Semaglutida \(Frasco\)/.test(r.nome)){r.nome='Semaglutida (frasco)';r.tamanhos=FRASCO[r.nome]}
+  else r.tamanhos=[old];
+  r.est={};r.est[old]=+r.estoque||0;r.estoque='';r.buy={};r.manual=false}delete r.conteudo});
+S.custom.forEach(c=>{if(!CAT.some(x=>x.nome===c.nome))CAT.push(c)});
+S.rows.forEach(r=>r.id=uid++);
+let filtro='ALL';
+function save(){try{const c=JSON.parse(JSON.stringify(S));c.rows.forEach(r=>delete r.id);localStorage.setItem(KEY,JSON.stringify(c))}catch(e){}}
+
+function P(){const p=S.params;const periodo=Math.max(1,Math.round(+p.periodo||15));const prazo=Math.max(0,+p.prazo||0);const margem=Math.max(0,+p.margem||0)/100;return{periodo,prazo,margem,janela:JANELA,cobertura:periodo+prazo}}
+const isFr=r=>Array.isArray(r.tamanhos)&&r.tamanhos.length>0;
+const sum=(r,o)=>r.tamanhos.reduce((t,z)=>t+z*(+(o||{})[z]||0),0);
+const cnt=(r,o)=>r.tamanhos.reduce((t,z)=>t+(+(o||{})[z]||0),0);
+function sugerir(falta,sizes){
+  const o={};if(falta<=0)return o;const d=[...sizes].sort((a,b)=>b-a);const L=d[0];
+  let n=Math.floor(falta/L),rem=falta-n*L;if(n)o[L]=n;
+  if(rem>0){const fit=[...sizes].sort((a,b)=>a-b).find(z=>z>=rem)||L;o[fit]=(o[fit]||0)+1}
+  return o;
+}
+function calc(r){
+  const p=P();const consumo=Math.max(0,+r.consumo||0);
+  const diario=consumo/p.janela;
+  if(isFr(r)){
+    const needMg=Math.ceil(diario*p.cobertura*(1+p.margem)-1e-9);
+    const estMg=sum(r,r.est);const falta=Math.max(0,needMg-estMg);
+    const buy=r.manual?(r.buy||{}):sugerir(falta,r.tamanhos);
+    return{frasco:true,diario,necUn:needMg,estMg,falta,buy,planMg:sum(r,buy),compra:cnt(r,buy)};
+  }
+  const estoque=Math.max(0,+r.estoque||0);
+  let demanda=diario*p.cobertura;
+  if(r.via==='IMP')demanda+=Math.max(0,+r.vencer||0);
+  const necUn=Math.ceil(demanda*(1+p.margem)-1e-9);
+  return{diario,necUn,compra:Math.max(0,necUn-estoque)};
+}
+function buyLines(r,c){
+  if(!c.frasco)return[{nome:r.nome,q:c.compra,u:c.compra>1?'unidades':'unidade'}];
+  return[...r.tamanhos].sort((a,b)=>a-b).filter(z=>+c.buy[z]>0).map(z=>({nome:r.nome+' '+fmt(z)+' mg',q:+c.buy[z],u:+c.buy[z]>1?'frascos':'frasco'}));
+}
+
+/* ---------- parâmetros ---------- */
+const pmap={pPeriodo:'periodo',pPrazo:'prazo',pMargem:'margem',pData:'data',pOper:'oper',pResp:'resp'};
+Object.keys(pmap).forEach(id=>{const el=$(id);el.value=S.params[pmap[id]]??'';el.addEventListener('input',()=>{S.params[pmap[id]]=el.value;updateAll();save()})});
+function updateRule(){
+  const p=P();
+  document.querySelectorAll('.fq[data-p]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.p===p.periodo)));
+  document.querySelector('.fq.other').classList.toggle('on',![7,15,30].includes(p.periodo));
+  if(document.activeElement!==$('pPeriodo'))$('pPeriodo').value=p.periodo;
+  $('segA').style.flex=p.periodo+' 1 0';$('segB').style.flex=Math.max(p.prazo,1)+' 1 0';
+  $('segAtxt').textContent=p.periodo+' dias até a próxima compra';
+  $('segBtxt').textContent=p.prazo+' dias de entrega';
+  $('liveRule').innerHTML='Levante sempre o que foi usado nos <strong>últimos '+p.janela+' dias</strong>, qualquer que seja a frequência. O pedido precisa cobrir <strong>'+p.cobertura+' dias</strong> ('+p.periodo+' até a próxima compra + '+p.prazo+' de entrega), com <strong>'+fmt(p.margem*100)+'%</strong> de margem, descontando o que já tem em estoque.';
+  document.querySelectorAll('[data-per]').forEach(el=>el.textContent='Usado '+p.janela+' dias');
+}
+document.querySelector('.freq').addEventListener('click',e=>{const b=e.target.closest('.fq[data-p]');if(!b)return;S.params.periodo=+b.dataset.p;$('pPeriodo').value=b.dataset.p;updateAll();save()});
+/* ---------- farmácias ---------- */
+function renderPh(){
+  const l=$('phList');
+  l.innerHTML=S.farmacias.length?S.farmacias.map((f,i)=>'<span class="pill">'+esc(f)+'<button type="button" data-i="'+i+'" aria-label="Remover '+esc(f)+'">✕</button></span>').join(''):'<span class="empty">Nenhuma farmácia cadastrada. Adicione ao menos uma para organizar o pedido.</span>';
+}
+$('phForm').addEventListener('submit',e=>{e.preventDefault();const v=$('phName').value.trim();if(!v)return;if(!S.farmacias.includes(v))S.farmacias.push(v);$('phName').value='';renderPh();renderRows();renderReport();save();pushConfig();toast('Farmácia adicionada')});
+$('phList').addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(!b)return;const f=S.farmacias[+b.dataset.i];S.farmacias.splice(+b.dataset.i,1);S.rows.forEach(r=>{if(r.farmacia===f)r.farmacia=''});renderPh();renderRows();renderReport();save();pushConfig()});
+
+/* ---------- picker ---------- */
+function renderChips(){
+  const cnt={ALL:CAT.length};CAT.forEach(c=>cnt[c.via]=(cnt[c.via]||0)+1);
+  $('chips').innerHTML=['ALL','IV','IM','IMP','SC'].map(v=>'<button type="button" class="chip" data-v="'+v+'" aria-pressed="'+(filtro===v)+'">'+(v==='ALL'?'Todos':VIAS[v])+'<span class="c">'+cnt[v]+'</span></button>').join('');
+}
+$('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;filtro=b.dataset.v;renderChips();renderResults()});
+function renderResults(){
+  const q=norm($('search').value.trim());
+  const terms=q.split(/\s+/).filter(Boolean);
+  const have=new Set(S.rows.map(r=>r.nome));
+  const list=CAT.filter(c=>(filtro==='ALL'||c.via===filtro)&&terms.every(t=>norm(c.nome).includes(t)));
+  let h=list.map(c=>{const i=CAT.indexOf(c);const a=have.has(c.nome);return '<button type="button" class="res'+(a?' added':'')+'" data-c="'+i+'"><span class="via '+c.via+'">'+c.via+'</span><span class="nm">'+esc(c.nome)+'</span><span class="st">'+(a?'no pedido':'+ adicionar')+'</span></button>'}).join('');
+  const raw=$('search').value.trim();
+  if(raw&&!CAT.some(c=>norm(c.nome)===q))h+='<button type="button" class="res" data-custom="1"><span class="via">NOVO</span><span class="nm">Cadastrar “'+esc(raw)+'” como novo ativo</span><span class="st">cadastrar</span></button>';
+  $('results').innerHTML=h||'<div class="res" style="cursor:default"><span class="nm empty">Nenhum ativo encontrado.</span></div>';
+}
+$('search').addEventListener('input',renderResults);
+$('results').addEventListener('click',e=>{
+  const b=e.target.closest('.res');if(!b)return;
+  if(b.dataset.custom){$('newName').value=$('search').value.trim();if(filtro!=='ALL')$('newVia').value=filtro;$('newName').focus();$('newName').scrollIntoView({block:'center'});return}
+  if(b.dataset.c==null)return;const c=CAT[+b.dataset.c];
+  if(S.rows.some(r=>r.nome===c.nome)){toast('Este ativo já está no pedido');return}
+  addRow(c);
+});
+function addRow(c){
+  if(S.exemplo)clearExample(true);
+  S.rows.push({id:uid++,nome:c.nome,via:c.via,tamanhos:c.tamanhos?[...c.tamanhos]:null,est:{},buy:{},manual:false,farmacia:S.farmacias.length===1?S.farmacias[0]:'',consumo:'',vencer:'',estoque:''});
+  renderRows();renderResults();renderReport();save();toast('Ativo adicionado ao pedido');
+}
+function clearExample(silent){
+  S.exemplo=false;S.rows=[];S.farmacias=S.farmacias.filter(f=>!/\(exemplo\)$/.test(f));
+  renderPh();renderRows();renderResults();renderReport();save();if(!silent)toast('Exemplo removido');
+}
+$('newForm').addEventListener('submit',e=>{e.preventDefault();const nome=$('newName').value.trim();if(!nome){toast('Digite o nome do ativo');$('newName').focus();return}
+  if(CAT.some(c=>norm(c.nome)===norm(nome))){const c=CAT.find(c=>norm(c.nome)===norm(nome));if(S.rows.some(r=>r.nome===c.nome)){toast('Este ativo já está no pedido');return}addRow(c);$('newName').value='';return}
+  const tz=[...new Set($('newMg').value.split(/[;,\s]+/).map(x=>+x.replace(',','.')).filter(x=>x>0))];const c={nome,via:$('newVia').value,tamanhos:tz.length?tz:null,custom:true};CAT.push(c);S.custom.push(c);pushConfig();
+  $('newName').value='';$('newMg').value='';$('search').value='';renderChips();addRow(c)});
+$('janOk').addEventListener('click',()=>{S.avisoJanela=false;$('janBanner').hidden=true;save()});
+$('clearEx').addEventListener('click',()=>clearExample(false));
+
+/* ---------- linhas ---------- */
+function phOptions(sel){return '<option value="">Selecione</option>'+S.farmacias.map(f=>'<option'+(f===sel?' selected':'')+'>'+esc(f)+'</option>').join('')}
+function renderRows(){
+  $('exBanner').hidden=!S.exemplo;$('janBanner').hidden=!S.avisoJanela;
+  const tb=$('rows');
+  if(!S.rows.length){tb.innerHTML='<tr><td colspan="10" class="empty" style="padding:22px;text-align:center">Nenhum ativo no pedido. Busque acima e clique para adicionar.</td></tr>';updateCount();return}
+  tb.innerHTML=S.rows.map(r=>{
+    const imp=r.via==='IMP';const fr=isFr(r);const sz=fr?[...r.tamanhos].sort((a,b)=>a-b):[];
+    let h='<tr data-id="'+r.id+'"'+(fr?' class="has-sub"':'')+'>'+
+    '<td class="nm">'+esc(r.nome)+(fr?'<span class="hint">Uso em mg · frascos de '+sz.map(z=>fmt(z)).join(', ')+' mg</span>':'')+'</td>'+
+    '<td><span class="via '+r.via+'">'+(VIAS[r.via]||r.via)+'</span></td>'+
+    '<td><select id="f'+r.id+'" data-k="farmacia" aria-label="Farmácia">'+phOptions(r.farmacia)+'</select></td>'+
+    '<td class="num"><input id="c'+r.id+'" data-k="consumo" type="number" min="0" step="'+(fr?'0.5':'1')+'" value="'+esc(r.consumo)+'" aria-label="Usado no período" placeholder="0">'+(fr?'<span class="hint">mg</span>':'')+'</td>'+
+    '<td class="num">'+(imp?'<input id="v'+r.id+'" data-k="vencer" type="number" min="0" step="1" value="'+esc(r.vencer)+'" aria-label="Renovações previstas nos próximos 60 dias" placeholder="0">':'<span class="na">n/a</span>')+'</td>'+
+    '<td class="num">'+(fr?'<span class="na" data-o="em"></span>':'<input id="e'+r.id+'" data-k="estoque" type="number" min="0" step="1" value="'+esc(r.estoque)+'" aria-label="Estoque atual" placeholder="0">')+'</td>'+
+    '<td class="num" data-o="d"></td><td class="num" data-o="n"></td><td class="num" data-o="b"></td>'+
+    '<td><button type="button" class="x" data-del="'+r.id+'" aria-label="Remover">✕</button></td></tr>';
+    if(fr){
+      h+='<tr class="sub" data-id="'+r.id+'"><td colspan="10"><div class="vials">'+
+      '<div class="vials-grid">'+sz.map(z=>'<div class="vial"><div class="vs">Frasco '+fmt(z)+' mg</div>'+
+        '<label>Estoque<input id="es'+r.id+'_'+z+'" data-k="est" data-s="'+z+'" type="number" min="0" step="1" value="'+esc((r.est||{})[z]??'')+'" placeholder="0"></label>'+
+        '<label>Comprar<input id="bu'+r.id+'_'+z+'" data-k="buy" data-s="'+z+'" type="number" min="0" step="1" placeholder="0"></label></div>').join('')+'</div>'+
+      '<div class="vials-side"><div class="vials-status" data-o="s"></div><button type="button" class="btn sm ghost" data-auto="'+r.id+'">Usar sugestão automática</button></div>'+
+      '</div></td></tr>';
+    }
+    return h}).join('');
+  updateCalcs();
+}
+function updateCalcs(){
+  S.rows.forEach(r=>{const tr=document.querySelector('tr[data-id="'+r.id+'"]:not(.sub)');if(!tr)return;const c=calc(r);
+    tr.querySelector('[data-o="d"]').textContent=fmt(c.diario,1)+(c.frasco?' mg':'');
+    tr.querySelector('[data-o="n"]').textContent=fmt(c.necUn)+(c.frasco?' mg':'');
+    tr.querySelector('[data-o="b"]').innerHTML='<span class="buy'+(c.compra?'':' zero')+'">'+(c.compra?fmt(c.compra):'0')+(c.frasco?' fr':'')+'</span>';
+    if(c.frasco){
+      tr.querySelector('[data-o="em"]').textContent=fmt(c.estMg)+' mg';
+      const sub=document.querySelector('tr.sub[data-id="'+r.id+'"]');
+      r.tamanhos.forEach(z=>{const i=sub.querySelector('[data-k="buy"][data-s="'+z+'"]');if(i&&document.activeElement!==i)i.value=+c.buy[z]?c.buy[z]:''});
+      const ok=c.planMg>=c.falta;
+      const comp=[...r.tamanhos].sort((a,b)=>a-b).filter(z=>+c.buy[z]>0).map(z=>c.buy[z]+' × '+fmt(z)+' mg').join(' + ');
+      sub.querySelector('[data-o="s"]').innerHTML=
+        '<div><span class="lbl">'+(r.manual?'Ajuste manual':'Sugestão automática')+'</span></div>'+
+        '<div>Precisa cobrir <b>'+fmt(c.necUn)+' mg</b> · estoque <b>'+fmt(c.estMg)+' mg</b> · falta <b>'+fmt(c.falta)+' mg</b></div>'+
+        '<div>Pedido: '+(comp?'<b>'+comp+'</b> = '+fmt(c.planMg)+' mg':'nenhum frasco')+'</div>'+
+        (c.falta>0?'<span class="st-chip '+(ok?'ok':'warn')+'">'+(ok?'Cobre a necessidade':'Faltam '+fmt(c.falta-c.planMg)+' mg')+'</span>':'<span class="st-chip ok">Estoque suficiente</span>');
+      sub.querySelector('[data-auto]').hidden=!r.manual;
+    }});
+  updateCount();
+}
+function updateCount(){const n=S.rows.length,b=S.rows.filter(r=>calc(r).compra>0).length;$('countTxt').textContent=n?n+' ativo'+(n>1?'s':'')+' · '+b+' para comprar':''}
+$('rows').addEventListener('input',e=>{const el=e.target;const k=el.dataset.k;if(!k)return;const r=S.rows.find(x=>x.id==el.closest('tr').dataset.id);
+  if(k==='est'){r.est=r.est||{};r.est[el.dataset.s]=el.value}
+  else if(k==='buy'){if(!r.manual){r.buy={};r.manual=true}r.buy[el.dataset.s]=el.value}
+  else r[k]=el.value;
+  updateCalcs();renderReport();save()});
+$('rows').addEventListener('change',e=>{if(e.target.dataset.k==='farmacia'){renderReport()}});
+$('rows').addEventListener('click',e=>{
+  const a=e.target.closest('[data-auto]');if(a){const r=S.rows.find(x=>x.id==a.dataset.auto);r.manual=false;r.buy={};updateCalcs();renderReport();save();return}
+  const b=e.target.closest('[data-del]');if(!b)return;S.rows=S.rows.filter(r=>r.id!=b.dataset.del);renderRows();renderResults();renderReport();save()});
+
+/* ---------- relatório ---------- */
+function dataBR(s){if(!s)return '';const[y,m,d]=s.split('-');return d+'/'+m+'/'+y}
+function groups(){
+  const g={};S.rows.forEach(r=>{const c=calc(r);if(c.compra<=0)return;const k=r.farmacia||'';(g[k]=g[k]||[]).push({r,c})});
+  const keys=Object.keys(g).sort((a,b)=>a===''?1:b===''?-1:a.localeCompare(b,'pt-BR'));
+  return keys.map(k=>({farmacia:k,itens:g[k]}));
+}
+function textFor(gr){
+  const p=S.params;const L=[];
+  L.push('*Pedido de compra de ativos*');
+  if(gr.farmacia)L.push('Farmácia: '+gr.farmacia);
+  if(p.oper)L.push('Clínica: '+p.oper);
+  if(p.data)L.push('Data: '+dataBR(p.data));
+  L.push('');
+  gr.itens.forEach(({r,c})=>buyLines(r,c).forEach(l=>L.push('• '+l.nome+': '+l.q+' '+l.u)));
+  L.push('');L.push('Total: '+gr.itens.reduce((s,x)=>s+x.c.compra,0)+' unidades');
+  return L.join('\n');
+}
+let lastGroups=[];
+function renderReport(){
+  const p=S.params,pp=P();const gs=groups();lastGroups=gs;
+  const zero=S.rows.filter(r=>calc(r).compra<=0);
+  const total=gs.reduce((s,g)=>s+g.itens.reduce((a,x)=>a+x.c.compra,0),0);
+  let h='<div class="rep-head">'+document.querySelector('.logo').outerHTML+
+    '<div><h3>Relatório de Compra de Ativos</h3><div class="meta">'+[p.oper||'Clínica não informada',dataBR(p.data),p.resp?'Responsável: '+esc(p.resp):''].filter(Boolean).map(esc).join(' · ')+'</div></div></div>';
+  h+='<div class="rep-params">'+
+    [['Frequência de compra','A cada '+pp.periodo+' dias'],['Consumo considerado','Últimos '+pp.janela+' dias'],['Prazo de entrega',pp.prazo+' dias'],['Cobertura do pedido',pp.cobertura+' dias'],['Margem de segurança',fmt(pp.margem*100)+'%'],['Total a comprar',fmt(total)+' un']]
+    .map(([l,v])=>'<div><div class="lbl">'+l+'</div><div class="v">'+v+'</div></div>').join('')+'</div>';
+  h+='<div class="rep-body">';
+  if(!gs.length)h+='<p class="empty">Nenhum ativo com necessidade de compra. Preencha o consumo dos últimos 30 dias e o estoque na etapa 3.</p>';
+  gs.forEach((g,gi)=>{
+    const t=g.itens.reduce((a,x)=>a+x.c.compra,0);
+    h+='<div class="ph-block'+(g.farmacia?'':' warn')+'"><div class="ph-h"><h4>'+(g.farmacia?esc(g.farmacia):'Farmácia não definida')+'</h4><span class="tot">'+g.itens.length+' ativo'+(g.itens.length>1?'s':'')+' · '+fmt(t)+' un</span><button type="button" class="btn sm ghost" data-copy="'+gi+'">Copiar pedido</button></div>'+
+    '<div class="tbl-wrap"><table><thead><tr><th>Ativo</th><th>Via</th><th class="num" data-per>Usado 30 dias</th><th class="num">Estoque</th><th class="num">Pedido anterior</th><th class="num">Comprar</th></tr></thead><tbody>'+
+    g.itens.map(({r,c})=>'<tr><td>'+esc(r.nome)+'</td><td><span class="via '+r.via+'">'+(VIAS[r.via]||r.via)+'</span></td><td class="num">'+fmt(+r.consumo||0,c.frasco&&(+r.consumo%1)?1:0)+(c.frasco?' mg':'')+(r.via==='IMP'&&+r.vencer?' <span class="na">+'+fmt(+r.vencer)+' renovações</span>':'')+'</td><td class="num">'+(c.frasco?fmt(c.estMg)+' mg':fmt(+r.estoque||0))+'</td><td class="num na">'+prevTxt(r.nome)+'</td><td class="num">'+(c.frasco?buyLines(r,c).map(l=>'<span class="buy">'+l.q+' × '+esc(l.nome.slice(r.nome.length+1))+'</span>').join('<br>'):'<span class="buy">'+fmt(c.compra)+' un</span>')+'</td></tr>').join('')+
+    '</tbody></table></div></div>';
+  });
+  if(zero.length)h+='<div class="ph-block"><div class="ph-h"><h4 style="color:var(--muted)">Sem necessidade de compra neste ciclo</h4></div><div class="empty">'+zero.map(r=>esc(r.nome)).join(' · ')+'</div></div>';
+  h+='</div><div class="rep-foot"><button type="button" class="btn" id="copyAll"'+(gs.length?'':' disabled')+'>Copiar relatório completo</button><button type="button" class="btn ghost" id="saveHist"'+(gs.length&&!S.exemplo?'':' disabled')+'>Salvar no histórico</button><span class="empty">'+(S.exemplo?'Limpe o exemplo para salvar pedidos reais no histórico.':'O texto copiado vai pronto para WhatsApp ou e-mail, em unidades.')+'</span></div><div id="copyFallback" style="padding:0 18px 18px" hidden><textarea class="copybox" id="copyBox" readonly aria-label="Texto do pedido"></textarea></div>';
+  $('report').innerHTML=h;updateRule();
+}
+$('report').addEventListener('click',e=>{
+  const b=e.target.closest('[data-copy]');
+  if(b){copy(textFor(lastGroups[+b.dataset.copy]));return}
+  if(e.target.id==='copyAll'){copy(lastGroups.map(textFor).join('\n\n--------------------\n\n'))}
+});
+function copy(t){
+  const fb=()=>{$('copyFallback').hidden=false;const box=$('copyBox');box.value=t;box.focus();box.select();toast('Selecionado. Use Ctrl+C para copiar')};
+  try{navigator.clipboard.writeText(t).then(()=>toast('Pedido copiado'),fb)}catch(e){fb()}
+}
+let tt;function toast(m){const el=$('toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1800)}
+
+/* ---------- histórico ---------- */
+const HKEY='ativos-hist-v1';
+let HIST=[],histOpen=null,histConfirm=null,store=null;
+function localStore(){
+  const read=()=>{try{return JSON.parse(localStorage.getItem(HKEY)||'[]')}catch(e){return[]}};
+  const write=a=>{try{localStorage.setItem(HKEY,JSON.stringify(a))}catch(e){}};
+  let cb=null;
+  return{shared:false,
+    listen(f){cb=f;f(read().sort((a,b)=>b.criadoEm.localeCompare(a.criadoEm)))},
+    async add(d){const a=read();a.push({...d,id:'h'+Date.now()});write(a);cb&&this.listen(cb)},
+    async del(id){write(read().filter(x=>x.id!==id));cb&&this.listen(cb)},
+    async saveConfig(){}};
+}
+const API=(window.CONFIG&&window.CONFIG.API_URL||'').trim();
+async function apiGet(){const r=await fetch(API+'?acao=listar&t='+Date.now());const j=await r.json();if(!j.ok)throw new Error(j.erro||'erro');return j}
+async function apiPost(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});const j=await r.json();if(!j.ok)throw new Error(j.erro||'erro');return j}
+function sheetStore(){
+  let cb=null,onErr=null;
+  const st={shared:true,
+    listen(f,e){cb=f;onErr=e;return st.refresh()},
+    async refresh(){try{const j=await apiGet();applyRemoteConfig(j.config);cb&&cb(j.pedidos||[])}catch(err){onErr&&onErr(err)}},
+    async add(d){await apiPost({acao:'salvar',pedido:{...d,id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}});await st.refresh()},
+    async del(id){await apiPost({acao:'excluir',id});await st.refresh()},
+    async saveConfig(cfg){await apiPost({acao:'config',config:cfg})}};
+  return st;
+}
+let configLoaded=false;
+function applyRemoteConfig(c){
+  if(configLoaded)return;configLoaded=true;
+  if(c&&Array.isArray(c.farmacias)){
+    const ex=S.exemplo?S.farmacias.filter(f=>/\(exemplo\)$/.test(f)):[];
+    S.farmacias=[...new Set([...c.farmacias,...ex])];
+    (c.custom||[]).forEach(x=>{if(!CAT.some(y=>y.nome===x.nome))CAT.push(x);if(!S.custom.some(y=>y.nome===x.nome))S.custom.push(x)});
+    renderPh();renderChips();renderResults();renderRows();save();
+  }else{pushConfig()}
+}
+let cfgT;
+function pushConfig(){clearTimeout(cfgT);cfgT=setTimeout(()=>{if(!store||!store.shared)return;
+  store.saveConfig({farmacias:S.farmacias.filter(f=>!/\(exemplo\)$/.test(f)),custom:S.custom}).catch(()=>toast('Não foi possível salvar as farmácias na planilha'))},700)}
+function prevTxt(nome){
+  const h=HIST[0];if(!h)return '<span class="na">–</span>';
+  const ls=[];(h.farmacias||[]).forEach(f=>(f.itens||[]).forEach(i=>{if(i.ativo===nome)ls.push(i.q+(i.tam?' × '+fmt(i.tam)+' mg':' un'))}));
+  return ls.length?ls.join('<br>'):'<span class="na">não pedido</span>';
+}
+function snapshotPedido(){
+  const pp=P(),p=S.params;
+  const farmacias=groups().map(g=>({farmacia:g.farmacia||'Farmácia não definida',itens:g.itens.flatMap(({r,c})=>c.frasco
+      ?[...r.tamanhos].sort((a,b)=>a-b).filter(z=>+c.buy[z]>0).map(z=>({ativo:r.nome,via:r.via,tam:z,q:+c.buy[z],consumo:+r.consumo||0}))
+      :[{ativo:r.nome,via:r.via,q:c.compra,consumo:+r.consumo||0,estoque:+r.estoque||0}])}));
+  const rows=S.rows.map(r=>({nome:r.nome,via:r.via,tamanhos:r.tamanhos||null,farmacia:r.farmacia||''}));
+  return{criadoEm:new Date().toISOString(),data:p.data||today,clinica:p.oper||'',responsavel:p.resp||'',
+    periodo:pp.periodo,prazo:pp.prazo,margem:Math.round(pp.margem*100),janela:pp.janela,cobertura:pp.cobertura,
+    totalUn:farmacias.reduce((t,f)=>t+f.itens.reduce((a,i)=>a+i.q,0),0),
+    totalAtivos:new Set(farmacias.flatMap(f=>f.itens.map(i=>i.ativo))).size,farmacias,rows};
+}
+function histText(h){
+  return (h.farmacias||[]).map(f=>['*Pedido de compra de ativos*','Farmácia: '+f.farmacia].concat(h.clinica?['Clínica: '+h.clinica]:[]).concat(['Data: '+dataBR(h.data),''])
+    .concat(f.itens.map(i=>'• '+i.ativo+(i.tam?' '+fmt(i.tam)+' mg':'')+': '+i.q+' '+(i.tam?(i.q>1?'frascos':'frasco'):(i.q>1?'unidades':'unidade'))))
+    .concat(['','Total: '+f.itens.reduce((a,i)=>a+i.q,0)+' unidades']).join('\n')).join('\n\n--------------------\n\n');
+}
+function renderHist(){
+  const el=$('hist');
+  if(!HIST.length){el.innerHTML='<div class="panel empty">Nenhum pedido salvo ainda. Depois de conferir o relatório, clique em <b>Salvar no histórico</b> para guardar o pedido aqui.</div>';return}
+  el.innerHTML='<div class="tbl-wrap"><table class="htbl"><thead><tr><th>Data</th><th>Clínica</th><th>Frequência</th><th class="num">Ativos</th><th class="num">Unidades</th><th>Farmácias</th><th></th></tr></thead><tbody>'+
+  HIST.map(h=>{const open=histOpen===h.id,conf=histConfirm;
+    let t='<tr class="'+(open?'open':'')+'"><td><b>'+dataBR(h.data)+'</b><span class="hint">salvo '+new Date(h.criadoEm).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+'</span></td>'+
+    '<td>'+esc(h.clinica||'–')+(h.responsavel?'<span class="hint">'+esc(h.responsavel)+'</span>':'')+'</td>'+
+    '<td>A cada '+h.periodo+' dias</td><td class="num">'+fmt(h.totalAtivos||0)+'</td><td class="num"><b>'+fmt(h.totalUn||0)+'</b></td>'+
+    '<td>'+(h.farmacias||[]).map(f=>esc(f.farmacia)).join(', ')+'</td>'+
+    '<td class="hact"><button type="button" class="btn sm ghost" data-h="ver" data-id="'+h.id+'">'+(open?'Fechar':'Ver')+'</button></td></tr>';
+    if(open){
+      t+='<tr class="hdet"><td colspan="7"><div class="hdet-in">'+
+      '<div class="hmeta">Consumo dos últimos '+(h.janela||30)+' dias · cobertura de '+h.cobertura+' dias · entrega em '+h.prazo+' dias · margem '+h.margem+'%</div>'+
+      (h.farmacias||[]).map(f=>'<div class="hph"><h4>'+esc(f.farmacia)+'</h4><ul>'+f.itens.map(i=>'<li><span>'+esc(i.ativo)+(i.tam?' '+fmt(i.tam)+' mg':'')+'</span><b>'+i.q+' '+(i.tam?'fr':'un')+'</b></li>').join('')+'</ul></div>').join('')+
+      '<div class="row-inline">'+
+        '<button type="button" class="btn sm" data-h="copiar" data-id="'+h.id+'">Copiar pedido</button>'+
+        (conf&&conf.id===h.id&&conf.a==='base'
+          ?'<span class="confirm">Substituir os ativos do pedido atual? <button type="button" class="btn sm" data-h="base-ok" data-id="'+h.id+'">Sim, usar como base</button> <button type="button" class="btn sm ghost" data-h="cancel">Cancelar</button></span>'
+          :'<button type="button" class="btn sm ghost" data-h="base" data-id="'+h.id+'">Usar como base</button>')+
+        (conf&&conf.id===h.id&&conf.a==='del'
+          ?'<span class="confirm">Excluir este pedido do histórico? <button type="button" class="btn sm danger" data-h="del-ok" data-id="'+h.id+'">Excluir</button> <button type="button" class="btn sm ghost" data-h="cancel">Cancelar</button></span>'
+          :'<button type="button" class="btn sm ghost" data-h="del" data-id="'+h.id+'">Excluir</button>')+
+      '</div></div></td></tr>';
+    }
+    return t}).join('')+'</tbody></table></div>';
+}
+$('hist').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-h]');if(!b)return;const a=b.dataset.h,id=b.dataset.id;const h=HIST.find(x=>x.id===id);
+  if(a==='ver'){histOpen=histOpen===id?null:id;histConfirm=null;renderHist();return}
+  if(a==='cancel'){histConfirm=null;renderHist();return}
+  if(a==='copiar'&&h){copy(histText(h));return}
+  if(a==='base'||a==='del'){histConfirm={id,a};renderHist();return}
+  if(a==='base-ok'&&h){
+    if(S.exemplo){S.exemplo=false;S.farmacias=S.farmacias.filter(f=>!/\(exemplo\)$/.test(f))}
+    S.rows=(h.rows||[]).map(r=>({id:uid++,nome:r.nome,via:r.via,tamanhos:r.tamanhos||null,est:{},buy:{},manual:false,farmacia:r.farmacia||'',consumo:'',vencer:'',estoque:''}));
+    S.rows.forEach(r=>{if(r.farmacia&&!S.farmacias.includes(r.farmacia))S.farmacias.push(r.farmacia)});pushConfig();
+    histConfirm=null;renderPh();renderRows();renderResults();renderReport();renderHist();save();
+    $('s3').scrollIntoView({behavior:'smooth',block:'start'});toast('Ativos carregados. Preencha consumo e estoque');return}
+  if(a==='del-ok'){try{await store.del(id);histConfirm=null;histOpen=null;toast('Pedido excluído')}catch(err){toast('Não foi possível excluir. Tente de novo')}return}
+});
+$('report').addEventListener('click',async e=>{
+  if(e.target.id!=='saveHist'||!store)return;const b=e.target;b.disabled=true;
+  try{await store.add(snapshotPedido());toast('Pedido salvo no histórico')}
+  catch(err){toast(err&&err.code==='quota_exceeded'?'Histórico cheio. Exclua pedidos antigos':(err&&err.code==='invalid_argument'?'Você não tem permissão para salvar neste histórico':'Não foi possível salvar. Tente de novo'));b.disabled=false}
+});
+function startHist(){
+  store=API?sheetStore():localStore();
+  $('histWhere').textContent=store.shared?'Salvo na planilha da clínica':'Modo teste: salvo só neste navegador';
+  $('hist').innerHTML='<p class="empty">Carregando histórico...</p>';
+  store.listen(list=>{HIST=list;renderHist();renderReport()},()=>{
+    $('hist').innerHTML='<div class="panel empty">Não foi possível carregar o histórico da planilha. Verifique a internet e tente de novo. <button type="button" class="btn sm" id="histRetry">Tentar de novo</button></div>';
+    $('histRetry').onclick=()=>store.refresh();
+  });
+}
+startHist();
+
+function updateAll(){updateRule();updateCalcs();renderReport()}
+(function(){const n=(window.CONFIG&&window.CONFIG.CLINICA||'').trim();if(n&&n!=='Nome da Clínica'){S.params.oper=n;$('pOper').value=n;$('pOper').readOnly=true;$('clinicaTopo').textContent=n;document.title='Compra de Ativos · '+n}})();
+renderPh();renderChips();renderResults();renderRows();updateRule();renderReport();
+})();
+</script>
+
+</body>
+</html>
