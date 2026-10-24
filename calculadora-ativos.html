@@ -6,11 +6,12 @@
 <title>Compra de Ativos</title>
 <script>
 /* =====================================================================
-   CONFIGURAÇÃO DA CLÍNICA  ·  edite só estas duas linhas por clínica
+   CONFIGURAÇÃO  ·  um arquivo só para todas as clínicas
+   Cole abaixo o endereço /exec da planilha central (uma vez).
+   Cada clínica entra com o próprio código de acesso.
    ===================================================================== */
 window.CONFIG = {
-  CLINICA: "Nome da Clínica",           // aparece no topo e nos pedidos
-  API_URL: ""                           // URL do App da Web do Apps Script (termina em /exec)
+  API_URL: "https://script.google.com/macros/s/AKfycbxavWKkgqryrmDBGWJu-IA22A4TNbvhizhUpc02tc2c75iAOzSAwxpB9psb6WdCz9Re/exec"  // URL do App da Web do Apps Script (termina em /exec)
 };
 </script>
 
@@ -158,6 +159,21 @@ textarea.copybox{width:100%;min-height:160px;border:1px solid var(--line);border
 .seg{display:flex;align-items:center;justify-content:center;padding:6px 10px;text-align:center;min-width:0}
 .seg.a{background:var(--gold-soft);color:var(--ink)}
 .seg.b{background:var(--btn);color:var(--btn-ink)}
+.rule.imp{font-size:.98rem;margin-top:-6px}
+.testbar{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);border-radius:10px;padding:12px 16px;font-size:.95rem}
+.hist-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.gate{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px 16px}
+body.gated main,body.gated .band{display:none}
+.gate-card{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--gold);border-radius:12px;padding:28px 24px;max-width:400px;width:100%;display:grid;gap:10px;text-align:center}
+.gate-card h2{color:var(--navy);font-size:1.4rem}
+.gate-card p{margin:0;color:var(--muted)}
+.gate-card label{text-align:left;font-size:.85rem;font-weight:700;color:var(--muted);margin-top:6px}
+.gate-card input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:12px;font-size:1.2rem;letter-spacing:.15em;text-align:center;text-transform:uppercase}
+.gate-card small{color:var(--muted)}
+.gate-logo{width:64px;margin:0 auto}.gate-logo path{fill:var(--navy)}.gate-logo .arrow{fill:var(--gold)}
+.gate-err{color:var(--danger)!important;font-size:.9rem}
+.sair{max-width:1180px;margin:0 auto;padding:0 16px 32px;color:var(--muted);font-size:.9rem}
+.linkbtn{border:0;background:none;color:var(--navy);text-decoration:underline;cursor:pointer;font:inherit;padding:0}
 .why{margin:-8px 0 0;color:var(--muted);font-size:.9rem;max-width:70ch}
 .rule{margin:0;font-size:1.08rem;line-height:1.55}
 .rule strong{color:var(--navy);font-variant-numeric:tabular-nums}
@@ -200,6 +216,25 @@ textarea.copybox{width:100%;min-height:160px;border:1px solid var(--line);border
 .confirm{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:4px 8px;font-size:.9rem}
 .btn.danger{background:var(--danger);color:var(--surface)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+@media (max-width:700px){
+  .items thead,.rtbl thead{display:none}
+  .items,.items tbody,.rtbl,.rtbl tbody{display:block}
+  .items tr:not(.sub),.rtbl tr{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;padding:12px 14px;border-bottom:1px solid var(--line);position:relative}
+  .items tr.has-sub{border-bottom:0}
+  .items td,.rtbl td{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;padding:2px 0;text-align:right;min-width:0}
+  .items td::before,.rtbl td::before{content:attr(data-l);font-size:.74rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:left}
+  .items td.nm,.rtbl td.nm{grid-column:1/-1;display:block;text-align:left;font-weight:700;padding-right:34px;max-width:none}
+  .items td.nm::before,.rtbl td.nm::before{content:none}
+  .items td.m-hide{display:none}
+  .items td.m-buy,.rtbl td.m-buy{grid-column:1/-1;border-top:1px dashed var(--line);padding-top:8px}
+  .items td.m-del{position:absolute;top:8px;right:6px;padding:0}
+  .items td.m-del::before{content:none}
+  .items td select{max-width:60%}
+  .items tr.sub{display:block}.items tr.sub td{display:block;padding:0 14px 14px}
+  .items tr.sub td::before{content:none}
+  .items tr.sub td{text-align:left}
+  .vials-grid{flex-basis:100%}
+}
 @media (max-width:820px){.guide,.two{grid-template-columns:1fr}.band .phrase{margin-left:0;width:100%}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -224,6 +259,7 @@ textarea.copybox{width:100%;min-height:160px;border:1px solid var(--line);border
 </header>
 
 <main>
+  <div class="testbar" id="testBar" hidden><b>Modo teste.</b> Esta calculadora não está ligada à planilha da clínica: o histórico fica só neste navegador. Não use para pedidos reais.</div>
   <!-- 1. Como é a compra -->
   <section class="step" aria-labelledby="s1">
     <div class="step-h"><span class="n">1</span><h2 id="s1">De quanto em quanto tempo você compra?</h2></div>
@@ -239,14 +275,16 @@ textarea.copybox{width:100%;min-height:160px;border:1px solid var(--line);border
         <div class="seg b" id="segB"><span id="segBtxt">30 dias de entrega</span></div>
       </div>
       <p class="rule" id="liveRule"></p>
+      <p class="rule imp" id="liveImp"></p>
       <p class="why">Usar 30 dias de consumo evita que uma semana atípica, com evento ou feriado, infle ou esvazie o pedido. A frequência só define por quanto tempo o pedido precisa durar.</p>
       <div class="mini">
-        <div class="field"><label for="pPrazo">Prazo de entrega (dias)</label><input id="pPrazo" type="number" min="0" step="1" value="30"></div>
+        <div class="field"><label for="pPrazo">Entrega dos injetáveis (dias)</label><input id="pPrazo" type="number" min="0" step="1" value="30"></div>
+        <div class="field"><label for="pPrazoImp">Entrega dos implantes (dias)</label><input id="pPrazoImp" type="number" min="0" step="1" value="30"></div>
         <div class="field"><label for="pMargem">Margem de segurança (%)</label><input id="pMargem" type="number" min="0" max="200" step="5" value="20"></div>
       </div>
       <ul class="tips">
         <li><b>Sempre em unidades</b>: ampolas, frascos, implantes. Nunca caixas.</li>
-        <li><b>Implantes</b>: lance os realizados nos últimos 30 dias e, na coluna própria, os implantes com renovação prevista nos pacientes nos próximos 60 dias.</li>
+        <li><b>Implantes</b>: lance os realizados nos últimos 30 dias e, na coluna <b>Renovações</b>, os pacientes com renovação prevista dentro da cobertura dos implantes (frequência + entrega dos implantes).</li>
         <li><b>Tirzepatida e Semaglutida em frasco</b>: lance o uso em mg e o estoque por tamanho de frasco. A calculadora sugere quantos frascos de cada tamanho comprar, e você pode ajustar.</li>
       </ul>
     </div>
@@ -305,7 +343,7 @@ textarea.copybox{width:100%;min-height:160px;border:1px solid var(--line);border
       <table class="items">
         <thead><tr>
           <th>Ativo</th><th>Via</th><th>Farmácia</th>
-          <th class="num" data-per>Usado 30 dias</th><th class="num">Renovações 60 d</th><th class="num">Estoque</th>
+          <th class="num" data-per>Usado 30 dias</th><th class="num" data-ren>Renovações</th><th class="num">Estoque</th><th class="num">Em trânsito</th>
           <th class="num">Média/dia</th><th class="num">Necessidade</th><th class="num">Comprar (un)</th><th></th>
         </tr></thead>
         <tbody id="rows"></tbody>
@@ -324,6 +362,19 @@ textarea.copybox{width:100%;min-height:160px;border:1px solid var(--line);border
     <div id="hist" class="hist"><p class="empty">Carregando histórico...</p></div>
   </section>
 </main>
+<div class="sair" id="sairBox" hidden>Você está na calculadora de <b id="sairNome"></b>. <button type="button" class="linkbtn" id="sairBtn">Sair ou trocar de clínica</button></div>
+<div class="gate" id="gate" hidden>
+  <form class="gate-card" id="gateForm">
+    <svg class="gate-logo" viewBox="370 172 502 356" aria-hidden="true"><path class="arrow" d="M428 521 L375 520 L511 179 L559 179 L636 377 Q614 389 591 397 L535 252 L462 437 Q640 446 763 306 L737 278 L849 237 L811 350 L785 329 Q652 476 449 468 Z"/><path d="M604 179 L658 179 L712 323 Q692 341 671 356 Z"/><path d="M621 470 Q645 462 667 452 L693 522 L640 522 Z"/><path d="M701 433 Q723 420 743 404 L769 472 Q772 476 780 476 L866 476 L866 522 L735 522 Z"/></svg>
+    <h2>Calculadora de Compra de Ativos</h2>
+    <p>Digite o código de acesso da sua clínica, enviado pela consultoria.</p>
+    <label for="gateCod">Código de acesso</label>
+    <input id="gateCod" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ex.: K7PX3MQA">
+    <p class="gate-err" id="gateErr" hidden></p>
+    <button class="btn" id="gateBtn" type="submit">Entrar</button>
+    <small>Cada clínica vê só os próprios pedidos.</small>
+  </form>
+</div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -332,7 +383,7 @@ const VIAS={IV:'Intravenoso',IM:'Intramuscular',IMP:'Implante',SC:'Subcutâneo',
 const RAW={
 IV:`L-Glicina 75mg - 2mL|Ácido alfa Lipóico 600mg - 24mL|Alfa-GPC (Alfa-glicerilfosfatidilcolina) - 98% de GPC (15%) 150mg/1mL|Beta Glucana 10mg - 2mL|Ferinject|Vitamina C 20% (10g) - 25mL|Vitamina C 20% (10g) - 50mL|Vitamina C 20% (1g) - 5mL|Vitamina C 20% (444mg) - 2mL|Vitamina C 20% (5mg) - 25mL|Selênio 80mcg - 2mL|Sulf. Zinco 20mg - 2mL|ATP 20mg - 2mL|Piracetam 500g - 2mL|L-Ornitina 300mg - 2mL|L-Lisina 300mg - 2mL|L-Taurina (5%) 100mg - 2mL|Taurina (7,5%) 150mg / 2mL|Inositol 10% + L-Taurina 7,5% - 2mL|L-Glutathion (5%) 100mg - 2mL|L-Carnitina (30%) 600mg - 2mL|L-Metionina 25g + Taurina 50mg + L-Prolina 10mg + Biotina 10mg + Vit B2 5mg + Vit B3 10mg + Vit B6 10mg + Vit B5 10mg / 2mL|Sulfato de Magnésio (10%) 200mg - 2mL|Sulfato de Magnésio (10%) 500mg - 5mL|Alanil Glutamina 1g - 10mL|Alanil Glutamina 200mg - 2mL|N-Acetil Cisteína (15%) 300mg - 2mL|N-Acetil L-Tirosina (1%) 20mg / 2mL|Nanomicelas de Curcuminoides (0,1%) 2mg / 2mL|Nanomicelas de Baicalina (0,5%) 5mg/1mL|Nanomicelas de Quercetina (0,75%) 15mg/2mL|Vitamina B3 600.000UI - 1mL|Inositol (5%) 100mg + Taurina (5%) 100mg/2mL|D-Pantenol 40mg - 2mL|Noripurum|Aminoácidos (3,8%) /10mL (Glicina 74mg + Ácido Aspártico 9mg + L-Ornitina HCl 30mg + L-Lisina HCl 31mg + L-Prolina 90mg + Serina 12mg + L-Metionina 46mg + L-Arginina HCl 80mg + L-Triptofano 9mg)|Pool Minerais|MSM (Metilsulfonilmetano) (15%) 750mg / 5mL|MSM (Metilsulfonilmetano) (15%) 1,5g / 10mL|NMN (B-Mononucleotídeo de Nicotinamida) (10%) 100mg / 1mL|Ocitocina - 10 UI - 2mL`,
 IM:`Melatonina 10mg|Protocolo Adjuvante para Cognição e Neuroproteção|Aplicação Intramuscular|Protocolo Adjuvante para Cicatrização|Protocolo Adjuvante para Cognição|Biocolin (Vit B2+B3+B5+B6+Zn+Se+Si+B9+Prolina) 5mL|B9 (Ácido fólico ou metilfolato) 2,5mg / 2mL|Beta Alanina (37,5%) 750mg / 2mL|Biotina 10mg - 2mL|Cafeína Benzoica (5%) 100mg / 2mL|Citrus Sinensis|Citrus sinensis complex com Teacrina / 2,5mL (Citrus sinensis L. Osbeck Moro 20mg + Teacrina 25mg + L-Carnitina 150mg + Inositol 50mg + Furosemida 2,5mg + Lidocaína HCl 10mg)|Coenzima Q10 (5%) 100mg / 2mL - Veículo oleoso|Teacrina Complex|Timomodulina (2,5%) 50mg / 2mL|Complexo B com B1 /1mL (Vit B1 5mg + Vit B2 1,25mg + Vit B3 15mg + Vit B5 3mg + Vit B6 1,25mg)|Complexo B com Metil B12 /2mL (Vit B2 10mg + Vit B3 30mg + Vit B5 30mg + Vit B6 80mg + Metil B12 1mg)|Complexo B sem B1 /2mL (Vit B2 10mg + Vit B3 10mg + Vit B5 50mg + Vit B6 10mg)|D-Ribose (25%) 500mg / 2mL|GABA (Ácido Gama aminobutírico) (1,25%) 25mg/2mL|HMB (Hidroximetilbutirato) (7,5%) 150mg /2mL|Inositol (10%) 200mg + L-Taurina (7,5%) 150mg/ 2mL|L-Teanina|L-Arginina (50%) 1g/ 2mL|L-Fenilalanina (1%) 20mg - 2mL|L-BAIBA (Ácido β-aminoisobutírico) 100mg/1mL|Lidocaína 1% - 2mL|Lidocaína (2%) 20mg/ 1mL|L-Prolina 500mg - 2mL|L-Taurina 150g - 2mL|L-Theanina (2,5%) 50mg/ 2mL|Metilcobalamina 2500mcg - 1mL|Metilcobalamina 500mcg|Metiladores /2mL (Metilcobalamina 2,5mg + Piridoxal-5-fosfato 10mg) + Metilfolato 2,5mg/2mL|Nanomicelas de Resveratrol (1%) 10mg /1mL|Pill Food - 2mL (L-Metionina 25mg + L-Taurina 50mg + L-Prolina 10mg + Biotina 10mg + Vit B2 5mg + Vit B3 10mg + Vit B6 10mg + D-Pantenol 10mg)|Picolinato de Cromo 100mcg + L-Carnitina 300mg + Inositol 500mg + Taurina 375mg + L-Theanina 100mg + N-Acetil L-Tirosina 50mg + Lidocaína HCl 1% / 5mL|Pool Cognição|Pool para Cognição (colina cloreto + L-carnitina + D-pantenol) 2mL|Pool Metabólico 5mL|Pool Coenzimático - 2mL (Tiamina 100mg + Piridoxal 5mg + Metiltetrahidrofolato 1mg + Metil B12 1000mcg + Vit B2 20mg + D-Pantenol 100mg)|Hormus Undecilato de Testosterona 250mg / 4mL|Durateston|Nandrolona 50mg - 2mL|Nandrolona 25mg - 2mL|Protocolo Detox|Adenosina Trifosfato 20mg + Pirroloquinolina Quinona 2mg + L-Carnitina 600mg / 2mL|Complexo B com B12 e P5F / 2mL (Vit B2 10mg + Vit B3 30mg + Vit B5 50mg + Piridoxal 5-Fosfato 6mg + Metilcobalamina 1mg)|Testosterona - 100mg - 1mL|Testosterona - 300mg - 1mL|Tocotrienóis (70%) 5mg + GeranilGeraniol 5mg (Urucum Complex) / 1mL|PQQ 5mg - 2mL|Resveratrol 100mg - 2mL|Silício 10mg - 2mL|Sulfato de Condroitina 100mg - 2mL|Teacrina 50mg/2mL|Trissilinol (Silício Orgânico) (0,5%) 10mg / 2mL|Undecanoato de testosterona 1.000mg /4mL|Undecanoato de testosterona 100mg /1mL|Bac ITU + Cândida|Vitamina D3 (Colecalciferol) 100.000UI / 1mL - Veículo oleoso|Vitamina D3 (Colecalciferol) 600.000UI /1mL - Veículo oleoso|ADEK2 600.000UI / 1mL (Vit A 20.000UI + Vit D3 600.000UI + Vit E 50UI + Vit K2 MK7 1300mcg) - Veículo oleoso|Undecilato de Testosterona 1.000mg|Vitamina DK2 600.000UI / 1mL (Vit D3 600.000UI + Vit K2 MK7 1000mcg) - Veículo oleoso|Vitamina B2 10mg|Vitamina B3 30mg|Vitamina B5 30mg|Vitamina B6 40mg`,
-IMP:`Aplicação Implante|Gestrinona - 40mg - Absorvível|Gestrinona - 50mg - Absorvível|Gestrinona - 85mg - Absorvível|Drospirenona - 50mg - Absorvível|Drospirenona - 100mg - Absorvível|Nestorone - 50mg - Silástico|Testosterona - 40mg - Silástico|Estradiol - 50mg - Silástico|Acetato de Nomegestrol - 55mg - Silástico|Oxandrolona - 40mg - Silástico|Testosterona - 50mg - Absorvível|Testosterona - 100mg - Absorvível|Testosterona - 200mg - Absorvível|NAD - 100mg - Absorvível|NAD - 200mg - Absorvível|NAD - 300mg - Absorvível|NAD - 400mg - Absorvível|Oxandrolona - 25mg - Absorvível|Oxandrolona - 50mg - Absorvível|Oxandrolona - 100mg - Absorvível|Oxandrolona - 200mg - Absorvível|Tadalafil - 25mg - Absorvível|Tadalafil - 50mg - Absorvível|Tadalafil - 200mg - Absorvível|Metformina - 100mg - Absorvível|Metformina - 200mg - Absorvível|Anastrozol - 5mg - Absorvível|Anastrozol - 10mg - Absorvível|Trans-resveratrol - 100mg|Testosterona - 25mg - Absorvível|Testosterona - 75mg - Absorvível|Testosterona - 150mg - Absorvível|Testosterona - 300mg - Absorvível|Testosterona - 400mg - Absorvível|Progesterona - 50mg - Absorvível|Progesterona - 100mg - Absorvível|Estradiol - 10mg - Absorvível|Estradiol - 12,5mg - Absorvível|Estradiol - 15mg - Absorvível|Estradiol - 20mg - Absorvível|Estradiol - 25mg - Absorvível|Estradiol - 35mg - Absorvível|Hormus Undecilato de Testosterona 1.000mg|Coenzima Q10 - Absorvível|Gestrinona 40g - Silástico|Testosterona 50mg - Silástico|Testosterona 100mg - Silástico|Testosterona 200mg - Silástico`,
+IMP:`Aplicação Implante|Gestrinona - 40mg - Absorvível|Gestrinona - 50mg - Absorvível|Gestrinona - 85mg - Absorvível|Drospirenona - 50mg - Absorvível|Drospirenona - 100mg - Absorvível|Nestorone - 50mg - Silástico|Testosterona - 40mg - Silástico|Estradiol - 50mg - Silástico|Acetato de Nomegestrol - 55mg - Silástico|Oxandrolona - 40mg - Silástico|Testosterona - 50mg - Absorvível|Testosterona - 100mg - Absorvível|Testosterona - 200mg - Absorvível|NAD - 100mg - Absorvível|NAD - 200mg - Absorvível|NAD - 300mg - Absorvível|NAD - 400mg - Absorvível|Oxandrolona - 25mg - Absorvível|Oxandrolona - 50mg - Absorvível|Oxandrolona - 100mg - Absorvível|Oxandrolona - 200mg - Absorvível|Tadalafil - 25mg - Absorvível|Tadalafil - 50mg - Absorvível|Tadalafil - 200mg - Absorvível|Metformina - 100mg - Absorvível|Metformina - 200mg - Absorvível|Anastrozol - 5mg - Absorvível|Anastrozol - 10mg - Absorvível|Trans-resveratrol - 100mg|Testosterona - 25mg - Absorvível|Testosterona - 75mg - Absorvível|Testosterona - 150mg - Absorvível|Testosterona - 300mg - Absorvível|Testosterona - 400mg - Absorvível|Progesterona - 50mg - Absorvível|Progesterona - 100mg - Absorvível|Estradiol - 10mg - Absorvível|Estradiol - 12,5mg - Absorvível|Estradiol - 15mg - Absorvível|Estradiol - 20mg - Absorvível|Estradiol - 25mg - Absorvível|Estradiol - 35mg - Absorvível|Hormus Undecilato de Testosterona 1.000mg|Coenzima Q10 - Absorvível|Gestrinona 40mg - Silástico|Testosterona 50mg - Silástico|Testosterona 100mg - Silástico|Testosterona 200mg - Silástico`,
 SC:`Tirzepatida (frasco)|Tirzepatide (5mg)|Tirzepatide (7,5mg)|Tirzepatide (10mg)|Tirzepatide (12,5mg)|Tirzepatide (15mg)|Semaglutida (frasco)|Semaglutida (10 UI)|Semaglutida (20 UI)|Semaglutida (30 UI)|Semaglutida (40 UI)|Semaglutida (50 UI)|Semaglutida (60 UI)|Semaglutida (80 UI)|Semaglutida (100 UI)|NADH/NAD 50mg/2mL|HCG (5.000 UI) - 1mL|HCG (150 UI) - 1mL`};
 const FRASCO={'Tirzepatida (frasco)':[25,50,60,90],'Semaglutida (frasco)':[4,6]};
 const CAT=[];Object.keys(RAW).forEach(v=>RAW[v].split('|').forEach(n=>{n=n.trim();if(n)CAT.push({nome:n,via:v,tamanhos:FRASCO[n]||null})}));
@@ -341,7 +392,12 @@ const $=id=>document.getElementById(id);
 const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=(n,d=0)=>Number(n).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
-const KEY='ativos-calc-v1';
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+const qsCod=(new URLSearchParams(location.search).get('c')||'').trim().toUpperCase();
+if(qsCod)lsSet('ativos-codigo',qsCod);
+const CODIGO=(qsCod||lsGet('ativos-codigo')||'').trim().toUpperCase();
+const KEY='ativos-calc-v1'+(CODIGO?':'+CODIGO:'');
 const JANELA=30; // consumo sempre medido nos últimos 30 dias
 let uid=1;
 const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
@@ -349,7 +405,7 @@ const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOStrin
 let S=null;
 try{S=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){S=null}
 if(!S||!S.params){
-  S={params:{periodo:15,prazo:30,margem:20,data:today,oper:'',resp:''},
+  S={params:{periodo:15,prazo:30,prazoImp:30,margem:20,data:today,oper:'',resp:''},
      farmacias:['Farmácia A (exemplo)','Farmácia B (exemplo)'],
      exemplo:true,janela30:true,
      rows:[
@@ -370,11 +426,13 @@ S.rows.forEach(r=>{if(r.conteudo&&!r.tamanhos){const old=r.conteudo;
   else r.tamanhos=[old];
   r.est={};r.est[old]=+r.estoque||0;r.estoque='';r.buy={};r.manual=false}delete r.conteudo});
 S.custom.forEach(c=>{if(!CAT.some(x=>x.nome===c.nome))CAT.push(c)});
+S.rows.forEach(r=>{if(r.nome==='Gestrinona 40g - Silástico')r.nome='Gestrinona 40mg - Silástico'});
+if(S.params.prazoImp==null)S.params.prazoImp=30;
 S.rows.forEach(r=>r.id=uid++);
 let filtro='ALL';
 function save(){try{const c=JSON.parse(JSON.stringify(S));c.rows.forEach(r=>delete r.id);localStorage.setItem(KEY,JSON.stringify(c))}catch(e){}}
 
-function P(){const p=S.params;const periodo=Math.max(1,Math.round(+p.periodo||15));const prazo=Math.max(0,+p.prazo||0);const margem=Math.max(0,+p.margem||0)/100;return{periodo,prazo,margem,janela:JANELA,cobertura:periodo+prazo}}
+function P(){const p=S.params;const periodo=Math.max(1,Math.round(+p.periodo||15));const prazo=Math.max(0,+p.prazo||0);const margem=Math.max(0,+p.margem||0)/100;const prazoImp=Math.max(0,+(p.prazoImp??30)||0);return{periodo,prazo,prazoImp,margem,janela:JANELA,cobertura:periodo+prazo,coberturaImp:periodo+prazoImp}}
 const isFr=r=>Array.isArray(r.tamanhos)&&r.tamanhos.length>0;
 const sum=(r,o)=>r.tamanhos.reduce((t,z)=>t+z*(+(o||{})[z]||0),0);
 const cnt=(r,o)=>r.tamanhos.reduce((t,z)=>t+(+(o||{})[z]||0),0);
@@ -384,20 +442,27 @@ function sugerir(falta,sizes){
   if(rem>0){const fit=[...sizes].sort((a,b)=>a-b).find(z=>z>=rem)||L;o[fit]=(o[fit]||0)+1}
   return o;
 }
+function transito(){
+  const t={};HIST.forEach(h=>{if(h.status!=='caminho')return;(h.farmacias||[]).forEach(f=>(f.itens||[]).forEach(i=>{
+    const k=i.ativo;t[k]=t[k]||{q:0,mg:0,tam:{}};if(i.tam){t[k].mg+=i.tam*i.q;t[k].tam[i.tam]=(t[k].tam[i.tam]||0)+i.q}else t[k].q+=i.q}))});
+  return t;
+}
+let TR={};
 function calc(r){
-  const p=P();const consumo=Math.max(0,+r.consumo||0);
+  const p=P();const consumo=Math.max(0,+r.consumo||0);const tr=isFr(r)?{q:0,mg:sum(r,r.trf)}:{q:Math.max(0,+r.transito||0),mg:0};
   const diario=consumo/p.janela;
   if(isFr(r)){
     const needMg=Math.ceil(diario*p.cobertura*(1+p.margem)-1e-9);
-    const estMg=sum(r,r.est);const falta=Math.max(0,needMg-estMg);
+    const estMg=sum(r,r.est);const falta=Math.max(0,needMg-estMg-tr.mg);
     const buy=r.manual?(r.buy||{}):sugerir(falta,r.tamanhos);
-    return{frasco:true,diario,necUn:needMg,estMg,falta,buy,planMg:sum(r,buy),compra:cnt(r,buy)};
+    return{frasco:true,diario,necUn:needMg,estMg,trMg:tr.mg,falta,buy,planMg:sum(r,buy),compra:cnt(r,buy)};
   }
   const estoque=Math.max(0,+r.estoque||0);
-  let demanda=diario*p.cobertura;
-  if(r.via==='IMP')demanda+=Math.max(0,+r.vencer||0);
+  const imp=r.via==='IMP';
+  let demanda=diario*(imp?p.coberturaImp:p.cobertura);
+  if(imp)demanda+=Math.max(0,+r.vencer||0);
   const necUn=Math.ceil(demanda*(1+p.margem)-1e-9);
-  return{diario,necUn,compra:Math.max(0,necUn-estoque)};
+  return{diario,necUn,tr:tr.q,compra:Math.max(0,necUn-estoque-tr.q)};
 }
 function buyLines(r,c){
   if(!c.frasco)return[{nome:r.nome,q:c.compra,u:c.compra>1?'unidades':'unidade'}];
@@ -405,7 +470,7 @@ function buyLines(r,c){
 }
 
 /* ---------- parâmetros ---------- */
-const pmap={pPeriodo:'periodo',pPrazo:'prazo',pMargem:'margem',pData:'data',pOper:'oper',pResp:'resp'};
+const pmap={pPeriodo:'periodo',pPrazo:'prazo',pPrazoImp:'prazoImp',pMargem:'margem',pData:'data',pOper:'oper',pResp:'resp'};
 Object.keys(pmap).forEach(id=>{const el=$(id);el.value=S.params[pmap[id]]??'';el.addEventListener('input',()=>{S.params[pmap[id]]=el.value;updateAll();save()})});
 function updateRule(){
   const p=P();
@@ -417,6 +482,8 @@ function updateRule(){
   $('segBtxt').textContent=p.prazo+' dias de entrega';
   $('liveRule').innerHTML='Levante sempre o que foi usado nos <strong>últimos '+p.janela+' dias</strong>, qualquer que seja a frequência. O pedido precisa cobrir <strong>'+p.cobertura+' dias</strong> ('+p.periodo+' até a próxima compra + '+p.prazo+' de entrega), com <strong>'+fmt(p.margem*100)+'%</strong> de margem, descontando o que já tem em estoque.';
   document.querySelectorAll('[data-per]').forEach(el=>el.textContent='Usado '+p.janela+' dias');
+  document.querySelectorAll('[data-ren]').forEach(el=>el.textContent='Renovações '+p.coberturaImp+' d');
+  $('liveImp').innerHTML='Implantes: cobertura de <strong>'+p.coberturaImp+' dias</strong> ('+p.periodo+' até a próxima compra + '+p.prazoImp+' de entrega). Lance as renovações previstas nesse prazo.';
 }
 document.querySelector('.freq').addEventListener('click',e=>{const b=e.target.closest('.fq[data-p]');if(!b)return;S.params.periodo=+b.dataset.p;$('pPeriodo').value=b.dataset.p;updateAll();save()});
 /* ---------- farmácias ---------- */
@@ -440,7 +507,7 @@ function renderResults(){
   const list=CAT.filter(c=>(filtro==='ALL'||c.via===filtro)&&terms.every(t=>norm(c.nome).includes(t)));
   let h=list.map(c=>{const i=CAT.indexOf(c);const a=have.has(c.nome);return '<button type="button" class="res'+(a?' added':'')+'" data-c="'+i+'"><span class="via '+c.via+'">'+c.via+'</span><span class="nm">'+esc(c.nome)+'</span><span class="st">'+(a?'no pedido':'+ adicionar')+'</span></button>'}).join('');
   const raw=$('search').value.trim();
-  if(raw&&!CAT.some(c=>norm(c.nome)===q))h+='<button type="button" class="res" data-custom="1"><span class="via">NOVO</span><span class="nm">Cadastrar “'+esc(raw)+'” como novo ativo</span><span class="st">cadastrar</span></button>';
+  if(raw&&!list.length)h+='<button type="button" class="res" data-custom="1"><span class="via">NOVO</span><span class="nm">Cadastrar “'+esc(raw)+'” como novo ativo</span><span class="st">cadastrar</span></button>';
   $('results').innerHTML=h||'<div class="res" style="cursor:default"><span class="nm empty">Nenhum ativo encontrado.</span></div>';
 }
 $('search').addEventListener('input',renderResults);
@@ -460,8 +527,9 @@ function clearExample(silent){
   S.exemplo=false;S.rows=[];S.farmacias=S.farmacias.filter(f=>!/\(exemplo\)$/.test(f));
   renderPh();renderRows();renderResults();renderReport();save();if(!silent)toast('Exemplo removido');
 }
+const chave=s=>norm(s).replace(/[^a-z0-9]/g,'');
 $('newForm').addEventListener('submit',e=>{e.preventDefault();const nome=$('newName').value.trim();if(!nome){toast('Digite o nome do ativo');$('newName').focus();return}
-  if(CAT.some(c=>norm(c.nome)===norm(nome))){const c=CAT.find(c=>norm(c.nome)===norm(nome));if(S.rows.some(r=>r.nome===c.nome)){toast('Este ativo já está no pedido');return}addRow(c);$('newName').value='';return}
+  if(CAT.some(c=>chave(c.nome)===chave(nome))){const c=CAT.find(c=>chave(c.nome)===chave(nome));toast('Este ativo já existe na lista: '+c.nome);if(S.rows.some(r=>r.nome===c.nome)){$('newName').value='';return}addRow(c);$('newName').value='';return}
   const tz=[...new Set($('newMg').value.split(/[;,\s]+/).map(x=>+x.replace(',','.')).filter(x=>x>0))];const c={nome,via:$('newVia').value,tamanhos:tz.length?tz:null,custom:true};CAT.push(c);S.custom.push(c);pushConfig();
   $('newName').value='';$('newMg').value='';$('search').value='';renderChips();addRow(c)});
 $('janOk').addEventListener('click',()=>{S.avisoJanela=false;$('janBanner').hidden=true;save()});
@@ -472,22 +540,24 @@ function phOptions(sel){return '<option value="">Selecione</option>'+S.farmacias
 function renderRows(){
   $('exBanner').hidden=!S.exemplo;$('janBanner').hidden=!S.avisoJanela;
   const tb=$('rows');
-  if(!S.rows.length){tb.innerHTML='<tr><td colspan="10" class="empty" style="padding:22px;text-align:center">Nenhum ativo no pedido. Busque acima e clique para adicionar.</td></tr>';updateCount();return}
+  if(!S.rows.length){tb.innerHTML='<tr><td colspan="11" class="empty" style="padding:22px;text-align:center">Nenhum ativo no pedido. Busque acima e clique para adicionar.</td></tr>';updateCount();return}
   tb.innerHTML=S.rows.map(r=>{
     const imp=r.via==='IMP';const fr=isFr(r);const sz=fr?[...r.tamanhos].sort((a,b)=>a-b):[];
     let h='<tr data-id="'+r.id+'"'+(fr?' class="has-sub"':'')+'>'+
-    '<td class="nm">'+esc(r.nome)+(fr?'<span class="hint">Uso em mg · frascos de '+sz.map(z=>fmt(z)).join(', ')+' mg</span>':'')+'</td>'+
-    '<td><span class="via '+r.via+'">'+(VIAS[r.via]||r.via)+'</span></td>'+
-    '<td><select id="f'+r.id+'" data-k="farmacia" aria-label="Farmácia">'+phOptions(r.farmacia)+'</select></td>'+
-    '<td class="num"><input id="c'+r.id+'" data-k="consumo" type="number" min="0" step="'+(fr?'0.5':'1')+'" value="'+esc(r.consumo)+'" aria-label="Usado no período" placeholder="0">'+(fr?'<span class="hint">mg</span>':'')+'</td>'+
-    '<td class="num">'+(imp?'<input id="v'+r.id+'" data-k="vencer" type="number" min="0" step="1" value="'+esc(r.vencer)+'" aria-label="Renovações previstas nos próximos 60 dias" placeholder="0">':'<span class="na">n/a</span>')+'</td>'+
-    '<td class="num">'+(fr?'<span class="na" data-o="em"></span>':'<input id="e'+r.id+'" data-k="estoque" type="number" min="0" step="1" value="'+esc(r.estoque)+'" aria-label="Estoque atual" placeholder="0">')+'</td>'+
-    '<td class="num" data-o="d"></td><td class="num" data-o="n"></td><td class="num" data-o="b"></td>'+
-    '<td><button type="button" class="x" data-del="'+r.id+'" aria-label="Remover">✕</button></td></tr>';
+    '<td class="nm" data-l="">'+esc(r.nome)+(fr?'<span class="hint">Uso em mg · frascos de '+sz.map(z=>fmt(z)).join(', ')+' mg</span>':'')+'</td>'+
+    '<td data-l="Via"><span class="via '+r.via+'">'+(VIAS[r.via]||r.via)+'</span></td>'+
+    '<td data-l="Farmácia"><select id="f'+r.id+'" data-k="farmacia" aria-label="Farmácia">'+phOptions(r.farmacia)+'</select></td>'+
+    '<td class="num" data-l="Usado 30 dias"><input id="c'+r.id+'" data-k="consumo" type="number" min="0" step="'+(fr?'0.5':'1')+'" value="'+esc(r.consumo)+'" aria-label="Usado no período" placeholder="0">'+(fr?'<span class="hint">mg</span>':'')+'</td>'+
+    '<td class="num'+(imp?'':' m-hide')+'" data-l="Renovações">'+(imp?'<input id="v'+r.id+'" data-k="vencer" type="number" min="0" step="1" value="'+esc(r.vencer)+'" aria-label="Renovações previstas na cobertura dos implantes" placeholder="0">':'<span class="na">n/a</span>')+'</td>'+
+    '<td class="num" data-l="Estoque">'+(fr?'<span class="na" data-o="em"></span>':'<input id="e'+r.id+'" data-k="estoque" type="number" min="0" step="1" value="'+esc(r.estoque)+'" aria-label="Estoque atual" placeholder="0">')+'</td>'+
+    '<td class="num" data-l="Em trânsito">'+(fr?'<span class="na" data-o="tm"></span>':'<input id="t'+r.id+'" data-k="transito" type="number" min="0" step="1" value="'+esc(r.transito??'')+'" aria-label="Quantidade em trânsito" placeholder="0">')+'</td>'+
+    '<td class="num" data-l="Média/dia" data-o="d"></td><td class="num" data-l="Necessidade" data-o="n"></td><td class="num m-buy" data-l="Comprar" data-o="b"></td>'+
+    '<td class="m-del"><button type="button" class="x" data-del="'+r.id+'" aria-label="Remover">✕</button></td></tr>';
     if(fr){
-      h+='<tr class="sub" data-id="'+r.id+'"><td colspan="10"><div class="vials">'+
+      h+='<tr class="sub" data-id="'+r.id+'"><td colspan="11"><div class="vials">'+
       '<div class="vials-grid">'+sz.map(z=>'<div class="vial"><div class="vs">Frasco '+fmt(z)+' mg</div>'+
         '<label>Estoque<input id="es'+r.id+'_'+z+'" data-k="est" data-s="'+z+'" type="number" min="0" step="1" value="'+esc((r.est||{})[z]??'')+'" placeholder="0"></label>'+
+        '<label>Em trânsito<input id="tf'+r.id+'_'+z+'" data-k="trf" data-s="'+z+'" type="number" min="0" step="1" value="'+esc((r.trf||{})[z]??'')+'" placeholder="0"></label>'+
         '<label>Comprar<input id="bu'+r.id+'_'+z+'" data-k="buy" data-s="'+z+'" type="number" min="0" step="1" placeholder="0"></label></div>').join('')+'</div>'+
       '<div class="vials-side"><div class="vials-status" data-o="s"></div><button type="button" class="btn sm ghost" data-auto="'+r.id+'">Usar sugestão automática</button></div>'+
       '</div></td></tr>';
@@ -498,9 +568,10 @@ function renderRows(){
 function updateCalcs(){
   S.rows.forEach(r=>{const tr=document.querySelector('tr[data-id="'+r.id+'"]:not(.sub)');if(!tr)return;const c=calc(r);
     tr.querySelector('[data-o="d"]').textContent=fmt(c.diario,1)+(c.frasco?' mg':'');
-    tr.querySelector('[data-o="n"]').textContent=fmt(c.necUn)+(c.frasco?' mg':'');
+    tr.querySelector('[data-o="n"]').innerHTML=fmt(c.necUn)+(c.frasco?' mg':'')+((c.frasco?c.trMg:c.tr)?'<span class="hint">'+fmt(c.frasco?c.trMg:c.tr)+(c.frasco?' mg':'')+' em trânsito</span>':'');
     tr.querySelector('[data-o="b"]').innerHTML='<span class="buy'+(c.compra?'':' zero')+'">'+(c.compra?fmt(c.compra):'0')+(c.frasco?' fr':'')+'</span>';
     if(c.frasco){
+      tr.querySelector('[data-o="tm"]').textContent=fmt(c.trMg||0)+' mg';
       tr.querySelector('[data-o="em"]').textContent=fmt(c.estMg)+' mg';
       const sub=document.querySelector('tr.sub[data-id="'+r.id+'"]');
       r.tamanhos.forEach(z=>{const i=sub.querySelector('[data-k="buy"][data-s="'+z+'"]');if(i&&document.activeElement!==i)i.value=+c.buy[z]?c.buy[z]:''});
@@ -508,7 +579,7 @@ function updateCalcs(){
       const comp=[...r.tamanhos].sort((a,b)=>a-b).filter(z=>+c.buy[z]>0).map(z=>c.buy[z]+' × '+fmt(z)+' mg').join(' + ');
       sub.querySelector('[data-o="s"]').innerHTML=
         '<div><span class="lbl">'+(r.manual?'Ajuste manual':'Sugestão automática')+'</span></div>'+
-        '<div>Precisa cobrir <b>'+fmt(c.necUn)+' mg</b> · estoque <b>'+fmt(c.estMg)+' mg</b> · falta <b>'+fmt(c.falta)+' mg</b></div>'+
+        '<div>Precisa cobrir <b>'+fmt(c.necUn)+' mg</b> · estoque <b>'+fmt(c.estMg)+' mg</b>'+(c.trMg?' · em trânsito <b>'+fmt(c.trMg)+' mg</b>':'')+' · falta <b>'+fmt(c.falta)+' mg</b></div>'+
         '<div>Pedido: '+(comp?'<b>'+comp+'</b> = '+fmt(c.planMg)+' mg':'nenhum frasco')+'</div>'+
         (c.falta>0?'<span class="st-chip '+(ok?'ok':'warn')+'">'+(ok?'Cobre a necessidade':'Faltam '+fmt(c.falta-c.planMg)+' mg')+'</span>':'<span class="st-chip ok">Estoque suficiente</span>');
       sub.querySelector('[data-auto]').hidden=!r.manual;
@@ -518,6 +589,7 @@ function updateCalcs(){
 function updateCount(){const n=S.rows.length,b=S.rows.filter(r=>calc(r).compra>0).length;$('countTxt').textContent=n?n+' ativo'+(n>1?'s':'')+' · '+b+' para comprar':''}
 $('rows').addEventListener('input',e=>{const el=e.target;const k=el.dataset.k;if(!k)return;const r=S.rows.find(x=>x.id==el.closest('tr').dataset.id);
   if(k==='est'){r.est=r.est||{};r.est[el.dataset.s]=el.value}
+  else if(k==='trf'){r.trf=r.trf||{};r.trf[el.dataset.s]=el.value}
   else if(k==='buy'){if(!r.manual){r.buy={};r.manual=true}r.buy[el.dataset.s]=el.value}
   else r[k]=el.value;
   updateCalcs();renderReport();save()});
@@ -527,6 +599,11 @@ $('rows').addEventListener('click',e=>{
   const b=e.target.closest('[data-del]');if(!b)return;S.rows=S.rows.filter(r=>r.id!=b.dataset.del);renderRows();renderResults();renderReport();save()});
 
 /* ---------- relatório ---------- */
+function tipoDe(via,frasco){return frasco?'fr':(via==='IMP'?'imp':'inj')}
+const TIPO={inj:['injetável','injetáveis'],imp:['implante','implantes'],fr:['frasco','frascos']};
+function totaisTxt(t,sep){return ['inj','imp','fr'].filter(k=>t[k]).map(k=>fmt(t[k])+' '+TIPO[k][t[k]>1?1:0]).join(sep||' · ')||'0'}
+function totaisItens(itens){const t={};itens.forEach(({r,c})=>{const k=tipoDe(r.via,c.frasco);t[k]=(t[k]||0)+c.compra});return t}
+function totaisSnap(list){const t={};list.forEach(i=>{const k=tipoDe(i.via,!!i.tam);t[k]=(t[k]||0)+i.q});return t}
 function dataBR(s){if(!s)return '';const[y,m,d]=s.split('-');return d+'/'+m+'/'+y}
 function groups(){
   const g={};S.rows.forEach(r=>{const c=calc(r);if(c.compra<=0)return;const k=r.farmacia||'';(g[k]=g[k]||[]).push({r,c})});
@@ -541,26 +618,26 @@ function textFor(gr){
   if(p.data)L.push('Data: '+dataBR(p.data));
   L.push('');
   gr.itens.forEach(({r,c})=>buyLines(r,c).forEach(l=>L.push('• '+l.nome+': '+l.q+' '+l.u)));
-  L.push('');L.push('Total: '+gr.itens.reduce((s,x)=>s+x.c.compra,0)+' unidades');
+  L.push('');L.push('Total: '+totaisTxt(totaisItens(gr.itens),', '));
   return L.join('\n');
 }
 let lastGroups=[];
 function renderReport(){
   const p=S.params,pp=P();const gs=groups();lastGroups=gs;
   const zero=S.rows.filter(r=>calc(r).compra<=0);
-  const total=gs.reduce((s,g)=>s+g.itens.reduce((a,x)=>a+x.c.compra,0),0);
+  const total=totaisItens(gs.flatMap(g=>g.itens));
   let h='<div class="rep-head">'+document.querySelector('.logo').outerHTML+
     '<div><h3>Relatório de Compra de Ativos</h3><div class="meta">'+[p.oper||'Clínica não informada',dataBR(p.data),p.resp?'Responsável: '+esc(p.resp):''].filter(Boolean).map(esc).join(' · ')+'</div></div></div>';
   h+='<div class="rep-params">'+
-    [['Frequência de compra','A cada '+pp.periodo+' dias'],['Consumo considerado','Últimos '+pp.janela+' dias'],['Prazo de entrega',pp.prazo+' dias'],['Cobertura do pedido',pp.cobertura+' dias'],['Margem de segurança',fmt(pp.margem*100)+'%'],['Total a comprar',fmt(total)+' un']]
+    [['Frequência de compra','A cada '+pp.periodo+' dias'],['Consumo considerado','Últimos '+pp.janela+' dias'],['Entrega injetáveis',pp.prazo+' dias'],['Entrega implantes',pp.prazoImp+' dias'],['Cobertura',pp.cobertura+' dias'+(pp.coberturaImp!==pp.cobertura?' · implantes '+pp.coberturaImp:'')],['Margem de segurança',fmt(pp.margem*100)+'%'],['Total a comprar',totaisTxt(total,'<br>')]]
     .map(([l,v])=>'<div><div class="lbl">'+l+'</div><div class="v">'+v+'</div></div>').join('')+'</div>';
   h+='<div class="rep-body">';
   if(!gs.length)h+='<p class="empty">Nenhum ativo com necessidade de compra. Preencha o consumo dos últimos 30 dias e o estoque na etapa 3.</p>';
   gs.forEach((g,gi)=>{
-    const t=g.itens.reduce((a,x)=>a+x.c.compra,0);
-    h+='<div class="ph-block'+(g.farmacia?'':' warn')+'"><div class="ph-h"><h4>'+(g.farmacia?esc(g.farmacia):'Farmácia não definida')+'</h4><span class="tot">'+g.itens.length+' ativo'+(g.itens.length>1?'s':'')+' · '+fmt(t)+' un</span><button type="button" class="btn sm ghost" data-copy="'+gi+'">Copiar pedido</button></div>'+
-    '<div class="tbl-wrap"><table><thead><tr><th>Ativo</th><th>Via</th><th class="num" data-per>Usado 30 dias</th><th class="num">Estoque</th><th class="num">Pedido anterior</th><th class="num">Comprar</th></tr></thead><tbody>'+
-    g.itens.map(({r,c})=>'<tr><td>'+esc(r.nome)+'</td><td><span class="via '+r.via+'">'+(VIAS[r.via]||r.via)+'</span></td><td class="num">'+fmt(+r.consumo||0,c.frasco&&(+r.consumo%1)?1:0)+(c.frasco?' mg':'')+(r.via==='IMP'&&+r.vencer?' <span class="na">+'+fmt(+r.vencer)+' renovações</span>':'')+'</td><td class="num">'+(c.frasco?fmt(c.estMg)+' mg':fmt(+r.estoque||0))+'</td><td class="num na">'+prevTxt(r.nome)+'</td><td class="num">'+(c.frasco?buyLines(r,c).map(l=>'<span class="buy">'+l.q+' × '+esc(l.nome.slice(r.nome.length+1))+'</span>').join('<br>'):'<span class="buy">'+fmt(c.compra)+' un</span>')+'</td></tr>').join('')+
+    const t=totaisItens(g.itens);
+    h+='<div class="ph-block'+(g.farmacia?'':' warn')+'"><div class="ph-h"><h4>'+(g.farmacia?esc(g.farmacia):'Farmácia não definida')+'</h4><span class="tot">'+g.itens.length+' ativo'+(g.itens.length>1?'s':'')+' · '+totaisTxt(t)+'</span><button type="button" class="btn sm ghost" data-copy="'+gi+'">Copiar pedido</button></div>'+
+    '<div class="tbl-wrap"><table class="rtbl"><thead><tr><th>Ativo</th><th>Via</th><th class="num" data-per>Usado 30 dias</th><th class="num">Estoque</th><th class="num">Em trânsito</th><th class="num">Pedido anterior</th><th class="num">Comprar</th></tr></thead><tbody>'+
+    g.itens.map(({r,c})=>'<tr><td class="nm" data-l="">'+esc(r.nome)+'</td><td data-l="Via"><span class="via '+r.via+'">'+(VIAS[r.via]||r.via)+'</span></td><td class="num" data-l="Usado 30 dias">'+fmt(+r.consumo||0,c.frasco&&(+r.consumo%1)?1:0)+(c.frasco?' mg':'')+(r.via==='IMP'&&+r.vencer?' <span class="na">+'+fmt(+r.vencer)+' renovações</span>':'')+'</td><td class="num" data-l="Estoque">'+(c.frasco?fmt(c.estMg)+' mg':fmt(+r.estoque||0))+'</td><td class="num na" data-l="Em trânsito">'+((c.frasco?c.trMg:c.tr)?fmt(c.frasco?c.trMg:c.tr)+(c.frasco?' mg':' un'):'–')+'</td><td class="num na" data-l="Pedido anterior">'+prevTxt(r.nome)+'</td><td class="num m-buy" data-l="Comprar">'+(c.frasco?buyLines(r,c).map(l=>'<span class="buy">'+l.q+' × '+esc(l.nome.slice(r.nome.length+1))+'</span>').join('<br>'):'<span class="buy">'+fmt(c.compra)+' un</span>')+'</td></tr>').join('')+
     '</tbody></table></div></div>';
   });
   if(zero.length)h+='<div class="ph-block"><div class="ph-h"><h4 style="color:var(--muted)">Sem necessidade de compra neste ciclo</h4></div><div class="empty">'+zero.map(r=>esc(r.nome)).join(' · ')+'</div></div>';
@@ -579,7 +656,7 @@ function copy(t){
 let tt;function toast(m){const el=$('toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1800)}
 
 /* ---------- histórico ---------- */
-const HKEY='ativos-hist-v1';
+const HKEY='ativos-hist-v1'+(CODIGO?':'+CODIGO:'');
 let HIST=[],histOpen=null,histConfirm=null,store=null;
 function localStore(){
   const read=()=>{try{return JSON.parse(localStorage.getItem(HKEY)||'[]')}catch(e){return[]}};
@@ -589,18 +666,22 @@ function localStore(){
     listen(f){cb=f;f(read().sort((a,b)=>b.criadoEm.localeCompare(a.criadoEm)))},
     async add(d){const a=read();a.push({...d,id:'h'+Date.now()});write(a);cb&&this.listen(cb)},
     async del(id){write(read().filter(x=>x.id!==id));cb&&this.listen(cb)},
+    async setStatus(id,st){write(read().map(x=>x.id===id?{...x,status:st,recebidoEm:st==='recebido'?new Date().toISOString():''}:x));cb&&this.listen(cb)},
+    async clear(){write([]);cb&&this.listen(cb)},
     async saveConfig(){}};
 }
 const API=(window.CONFIG&&window.CONFIG.API_URL||'').trim();
-async function apiGet(){const r=await fetch(API+'?acao=listar&t='+Date.now());const j=await r.json();if(!j.ok)throw new Error(j.erro||'erro');return j}
-async function apiPost(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});const j=await r.json();if(!j.ok)throw new Error(j.erro||'erro');return j}
+async function apiGet(acao,cod){const r=await fetch(API+'?acao='+(acao||'listar')+'&codigo='+encodeURIComponent(cod||CODIGO)+'&t='+Date.now());const j=await r.json();if(!j.ok)throw new Error(j.erro||'erro');return j}
+async function apiPost(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,codigo:CODIGO})});const j=await r.json();if(!j.ok)throw new Error(j.erro||'erro');return j}
 function sheetStore(){
   let cb=null,onErr=null;
   const st={shared:true,
     listen(f,e){cb=f;onErr=e;return st.refresh()},
-    async refresh(){try{const j=await apiGet();applyRemoteConfig(j.config);cb&&cb(j.pedidos||[])}catch(err){onErr&&onErr(err)}},
+    async refresh(){try{const j=await apiGet('listar');setClinica(j.clinica);applyRemoteConfig(j.config);cb&&cb(j.pedidos||[])}catch(err){if(/inválido|desativado|ausente/i.test(err.message)){showGate(err.message);return}onErr&&onErr(err)}},
     async add(d){await apiPost({acao:'salvar',pedido:{...d,id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}});await st.refresh()},
     async del(id){await apiPost({acao:'excluir',id});await st.refresh()},
+    async setStatus(id,status){await apiPost({acao:'status',id,status});await st.refresh()},
+    async clear(){await apiPost({acao:'limpar'});await st.refresh()},
     async saveConfig(cfg){await apiPost({acao:'config',config:cfg})}};
   return st;
 }
@@ -630,30 +711,31 @@ function snapshotPedido(){
   const rows=S.rows.map(r=>({nome:r.nome,via:r.via,tamanhos:r.tamanhos||null,farmacia:r.farmacia||''}));
   return{criadoEm:new Date().toISOString(),data:p.data||today,clinica:p.oper||'',responsavel:p.resp||'',
     periodo:pp.periodo,prazo:pp.prazo,margem:Math.round(pp.margem*100),janela:pp.janela,cobertura:pp.cobertura,
-    totalUn:farmacias.reduce((t,f)=>t+f.itens.reduce((a,i)=>a+i.q,0),0),
+    totalUn:farmacias.reduce((t,f)=>t+f.itens.reduce((a,i)=>a+i.q,0),0),totais:totaisSnap(farmacias.flatMap(f=>f.itens)),status:'caminho',prazoImp:pp.prazoImp,coberturaImp:pp.coberturaImp,
     totalAtivos:new Set(farmacias.flatMap(f=>f.itens.map(i=>i.ativo))).size,farmacias,rows};
 }
 function histText(h){
   return (h.farmacias||[]).map(f=>['*Pedido de compra de ativos*','Farmácia: '+f.farmacia].concat(h.clinica?['Clínica: '+h.clinica]:[]).concat(['Data: '+dataBR(h.data),''])
     .concat(f.itens.map(i=>'• '+i.ativo+(i.tam?' '+fmt(i.tam)+' mg':'')+': '+i.q+' '+(i.tam?(i.q>1?'frascos':'frasco'):(i.q>1?'unidades':'unidade'))))
-    .concat(['','Total: '+f.itens.reduce((a,i)=>a+i.q,0)+' unidades']).join('\n')).join('\n\n--------------------\n\n');
+    .concat(['','Total: '+totaisTxt(totaisSnap(f.itens),', ')]).join('\n')).join('\n\n--------------------\n\n');
 }
 function renderHist(){
   const el=$('hist');
   if(!HIST.length){el.innerHTML='<div class="panel empty">Nenhum pedido salvo ainda. Depois de conferir o relatório, clique em <b>Salvar no histórico</b> para guardar o pedido aqui.</div>';return}
-  el.innerHTML='<div class="tbl-wrap"><table class="htbl"><thead><tr><th>Data</th><th>Clínica</th><th>Frequência</th><th class="num">Ativos</th><th class="num">Unidades</th><th>Farmácias</th><th></th></tr></thead><tbody>'+
+  el.innerHTML='<div class="tbl-wrap"><table class="htbl"><thead><tr><th>Data</th><th>Clínica</th><th>Frequência</th><th>Situação</th><th class="num">Total</th><th>Farmácias</th><th></th></tr></thead><tbody>'+
   HIST.map(h=>{const open=histOpen===h.id,conf=histConfirm;
     let t='<tr class="'+(open?'open':'')+'"><td><b>'+dataBR(h.data)+'</b><span class="hint">salvo '+new Date(h.criadoEm).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+'</span></td>'+
     '<td>'+esc(h.clinica||'–')+(h.responsavel?'<span class="hint">'+esc(h.responsavel)+'</span>':'')+'</td>'+
-    '<td>A cada '+h.periodo+' dias</td><td class="num">'+fmt(h.totalAtivos||0)+'</td><td class="num"><b>'+fmt(h.totalUn||0)+'</b></td>'+
+    '<td>A cada '+h.periodo+' dias</td><td>'+(h.status==='caminho'?'<span class="st-chip warn">A caminho</span>':'<span class="st-chip ok">Recebido</span>')+'</td><td class="num"><b>'+totaisTxt(h.totais||totaisSnap((h.farmacias||[]).flatMap(f=>f.itens||[])),'<br>')+'</b></td>'+
     '<td>'+(h.farmacias||[]).map(f=>esc(f.farmacia)).join(', ')+'</td>'+
     '<td class="hact"><button type="button" class="btn sm ghost" data-h="ver" data-id="'+h.id+'">'+(open?'Fechar':'Ver')+'</button></td></tr>';
     if(open){
       t+='<tr class="hdet"><td colspan="7"><div class="hdet-in">'+
-      '<div class="hmeta">Consumo dos últimos '+(h.janela||30)+' dias · cobertura de '+h.cobertura+' dias · entrega em '+h.prazo+' dias · margem '+h.margem+'%</div>'+
+      '<div class="hmeta">Consumo dos últimos '+(h.janela||30)+' dias · cobertura de '+h.cobertura+' dias'+(h.coberturaImp?' (implantes '+h.coberturaImp+')':'')+' · margem '+h.margem+'%'+(h.recebidoEm?' · recebido em '+new Date(h.recebidoEm).toLocaleDateString('pt-BR'):'')+'</div>'+
       (h.farmacias||[]).map(f=>'<div class="hph"><h4>'+esc(f.farmacia)+'</h4><ul>'+f.itens.map(i=>'<li><span>'+esc(i.ativo)+(i.tam?' '+fmt(i.tam)+' mg':'')+'</span><b>'+i.q+' '+(i.tam?'fr':'un')+'</b></li>').join('')+'</ul></div>').join('')+
       '<div class="row-inline">'+
-        '<button type="button" class="btn sm" data-h="copiar" data-id="'+h.id+'">Copiar pedido</button>'+
+        (h.status==='caminho'?'<button type="button" class="btn sm" data-h="receber" data-id="'+h.id+'">Marcar como recebido</button>':'<button type="button" class="btn sm ghost" data-h="reabrir" data-id="'+h.id+'">Voltar para A caminho</button>')+
+        '<button type="button" class="btn sm ghost" data-h="copiar" data-id="'+h.id+'">Copiar pedido</button>'+
         (conf&&conf.id===h.id&&conf.a==='base'
           ?'<span class="confirm">Substituir os ativos do pedido atual? <button type="button" class="btn sm" data-h="base-ok" data-id="'+h.id+'">Sim, usar como base</button> <button type="button" class="btn sm ghost" data-h="cancel">Cancelar</button></span>'
           :'<button type="button" class="btn sm ghost" data-h="base" data-id="'+h.id+'">Usar como base</button>')+
@@ -662,14 +744,19 @@ function renderHist(){
           :'<button type="button" class="btn sm ghost" data-h="del" data-id="'+h.id+'">Excluir</button>')+
       '</div></div></td></tr>';
     }
-    return t}).join('')+'</tbody></table></div>';
+    return t}).join('')+'</tbody></table></div>'+
+  '<div class="hist-foot">'+(histConfirm&&histConfirm.a==='limpar'
+    ?'<span class="confirm">Apagar <b>todos</b> os '+HIST.length+' pedidos do histórico? Isso não pode ser desfeito. <button type="button" class="btn sm danger" data-h="limpar-ok">Apagar tudo</button> <button type="button" class="btn sm ghost" data-h="cancel">Cancelar</button></span>'
+    :'<button type="button" class="btn sm ghost" data-h="limpar">Apagar todo o histórico</button><span class="empty">Use para limpar os pedidos de teste antes de começar.</span>')+'</div>';
 }
 $('hist').addEventListener('click',async e=>{
   const b=e.target.closest('[data-h]');if(!b)return;const a=b.dataset.h,id=b.dataset.id;const h=HIST.find(x=>x.id===id);
   if(a==='ver'){histOpen=histOpen===id?null:id;histConfirm=null;renderHist();return}
   if(a==='cancel'){histConfirm=null;renderHist();return}
   if(a==='copiar'&&h){copy(histText(h));return}
-  if(a==='base'||a==='del'){histConfirm={id,a};renderHist();return}
+  if(a==='base'||a==='del'||a==='limpar'){histConfirm={id,a};renderHist();return}
+  if(a==='receber'||a==='reabrir'){b.disabled=true;try{await store.setStatus(id,a==='receber'?'recebido':'caminho');toast(a==='receber'?'Pedido marcado como recebido':'Pedido voltou para A caminho')}catch(err){toast('Não foi possível atualizar. Tente de novo');b.disabled=false}return}
+  if(a==='limpar-ok'){b.disabled=true;try{await store.clear();histConfirm=null;histOpen=null;toast('Histórico apagado')}catch(err){toast('Não foi possível apagar. Tente de novo');b.disabled=false}return}
   if(a==='base-ok'&&h){
     if(S.exemplo){S.exemplo=false;S.farmacias=S.farmacias.filter(f=>!/\(exemplo\)$/.test(f))}
     S.rows=(h.rows||[]).map(r=>({id:uid++,nome:r.nome,via:r.via,tamanhos:r.tamanhos||null,est:{},buy:{},manual:false,farmacia:r.farmacia||'',consumo:'',vencer:'',estoque:''}));
@@ -680,14 +767,29 @@ $('hist').addEventListener('click',async e=>{
 });
 $('report').addEventListener('click',async e=>{
   if(e.target.id!=='saveHist'||!store)return;const b=e.target;b.disabled=true;
-  try{await store.add(snapshotPedido());toast('Pedido salvo no histórico')}
+  try{await store.add(snapshotPedido());S.rows.forEach(r=>{r.consumo='';r.estoque='';r.vencer='';r.transito='';r.trf={};r.est={};r.buy={};r.manual=false});renderRows();renderReport();save();toast('Pedido salvo no histórico. Tela pronta para o próximo')}
   catch(err){toast(err&&err.code==='quota_exceeded'?'Histórico cheio. Exclua pedidos antigos':(err&&err.code==='invalid_argument'?'Você não tem permissão para salvar neste histórico':'Não foi possível salvar. Tente de novo'));b.disabled=false}
 });
+function setClinica(n){if(!n)return;S.params.oper=n;$('pOper').value=n;$('pOper').readOnly=true;$('clinicaTopo').textContent=n;document.title='Compra de Ativos · '+n;$('sairBox').hidden=false;$('sairNome').textContent=n}
+function showGate(msg){
+  $('gate').hidden=false;document.body.classList.add('gated');
+  $('gateErr').textContent=msg&&CODIGO?msg:'';$('gateErr').hidden=!(msg&&CODIGO);
+  setTimeout(()=>$('gateCod').focus(),50);
+}
+$('gateForm').addEventListener('submit',async e=>{
+  e.preventDefault();const cod=$('gateCod').value.trim().toUpperCase();if(!cod)return;
+  const b=$('gateBtn');b.disabled=true;b.textContent='Verificando...';$('gateErr').hidden=true;
+  try{await apiGet('entrar',cod);lsSet('ativos-codigo',cod);location.href=location.pathname+'?c='+encodeURIComponent(cod)}
+  catch(err){$('gateErr').textContent=/inválido|desativado/i.test(err.message)?err.message+'. Confira o código enviado pela consultoria.':'Não foi possível verificar agora. Confira a internet e tente de novo.';$('gateErr').hidden=false;b.disabled=false;b.textContent='Entrar'}
+});
+$('sairBtn').addEventListener('click',()=>{lsSet('ativos-codigo',null);location.href=location.pathname});
 function startHist(){
+  if(API&&!CODIGO){$('testBar').hidden=true;showGate();return}
   store=API?sheetStore():localStore();
-  $('histWhere').textContent=store.shared?'Salvo na planilha da clínica':'Modo teste: salvo só neste navegador';
+  $('testBar').hidden=store.shared;
+  $('histWhere').textContent=store.shared?'Salvo na planilha, visível só para esta clínica':'Modo teste: salvo só neste navegador';
   $('hist').innerHTML='<p class="empty">Carregando histórico...</p>';
-  store.listen(list=>{HIST=list;renderHist();renderReport()},()=>{
+  store.listen(list=>{HIST=list;TR=transito();renderHist();updateCalcs();renderReport()},()=>{
     $('hist').innerHTML='<div class="panel empty">Não foi possível carregar o histórico da planilha. Verifique a internet e tente de novo. <button type="button" class="btn sm" id="histRetry">Tentar de novo</button></div>';
     $('histRetry').onclick=()=>store.refresh();
   });
@@ -695,7 +797,6 @@ function startHist(){
 startHist();
 
 function updateAll(){updateRule();updateCalcs();renderReport()}
-(function(){const n=(window.CONFIG&&window.CONFIG.CLINICA||'').trim();if(n&&n!=='Nome da Clínica'){S.params.oper=n;$('pOper').value=n;$('pOper').readOnly=true;$('clinicaTopo').textContent=n;document.title='Compra de Ativos · '+n}})();
 renderPh();renderChips();renderResults();renderRows();updateRule();renderReport();
 })();
 </script>
